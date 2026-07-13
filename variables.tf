@@ -6,6 +6,11 @@ variable "cluster_name" {
     condition     = length(var.cluster_name) >= 1 && length(var.cluster_name) <= 100
     error_message = "cluster_name must be between 1 and 100 characters."
   }
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9_-]+$", var.cluster_name))
+    error_message = "cluster_name may only contain alphanumeric characters, hyphens, and underscores."
+  }
 }
 
 variable "kubernetes_version" {

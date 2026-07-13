@@ -49,6 +49,22 @@ output "node_iam_role_arn" {
   value       = module.eks.node_iam_role_arn
 }
 
+# Alias preserved for design §3 contract compatibility
+output "worker_iam_role_arn" {
+  description = "ARN of the IAM role attached to EKS worker nodes (alias for node_iam_role_arn)."
+  value       = module.eks.node_iam_role_arn
+}
+
+output "worker_iam_role_name" {
+  description = "Name of the IAM role attached to EKS worker nodes."
+  value       = module.eks.node_iam_role_name
+}
+
+output "kms_policy_arn" {
+  description = "ARN of the KMS key policy for EKS secrets encryption. Null when kms_key_enabled is false."
+  value       = try(module.eks.kms_policy_arn, null)
+}
+
 output "cloudwatch_log_group_name" {
   description = "Name of the CloudWatch log group for EKS control plane logs."
   value       = module.eks.cloudwatch_log_group_name
