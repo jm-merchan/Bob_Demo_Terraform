@@ -9,6 +9,12 @@ argument-hint: "[feature-name] - Implement from existing specs/{feature}/consume
 
 Builds and validates a consumer deployment from `specs/{FEATURE}/consumer-design.md`.
 
+## Phase 0: Load constitution
+
+Activate the `tf-consumer-constitution` skill before any other step. It contains the authoritative consumer rules and design template. If this skill and the constitution disagree, the constitution wins.
+
+
+
 Post progress at key steps: `bash .foundations/scripts/bash/post-issue-progress.sh $ISSUE_NUMBER "<step>" "<status>" "<summary>"`. Valid status values: `started`, `in-progress`, `complete`, `failed`.
 Checkpoint after each phase: `bash .foundations/scripts/bash/checkpoint-commit.sh --dir . --prefix feat "<step_name>"`. The `<step_name>` must be a short hyphenated identifier (e.g., `"scaffolding"`, `"checklist-item-b"`, `"validation"`) — NOT a sentence or file path.
 

@@ -9,6 +9,12 @@ argument-hint: "[module-name] [provider] - Brief description of what the module 
 
 Produces `specs/{FEATURE}/design.md` from requirements. Stops for human approval before any code is written.
 
+## Phase 0: Load constitution
+
+Activate the `tf-module-constitution` skill before any other step. It contains the authoritative module rules and design template. If this skill and the constitution disagree, the constitution wins.
+
+
+
 Post progress at key steps: `bash .foundations/scripts/bash/post-issue-progress.sh $ISSUE_NUMBER "<step>" "<status>" "<summary>"`. Valid status values: `started`, `in-progress`, `complete`, `failed`.
 Checkpoint after each phase: `bash .foundations/scripts/bash/checkpoint-commit.sh "<step_name>"`. The `<step_name>` must be a short hyphenated identifier (e.g., `"clarify"`, `"research-and-design"`, `"design-approved"`) — NOT a sentence or file path.
 

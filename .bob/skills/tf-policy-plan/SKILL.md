@@ -9,6 +9,12 @@ argument-hint: "[compliance-rule-or-policy-set] [provider] - Compliance rule, fr
 
 Produces `specs/{FEATURE}/tf-policy-design.md` from requirements. Stops for human approval before any code is written.
 
+## Phase 0: Load constitution
+
+Activate the `tf-policy-constitution` skill before any other step. It contains the authoritative policy rules and design template. If this skill and the constitution disagree, the constitution wins.
+
+
+
 The policy engine is tfpolicy. If the user asks for a different engine, point them to the constitution and the exception process rather than treating it as a clarification slot.
 
 Post progress at key steps: `bash .foundations/scripts/bash/post-issue-progress.sh $ISSUE_NUMBER "<step>" "<status>" "<summary>"`. Valid status values: `started`, `in-progress`, `complete`, `failed`.
