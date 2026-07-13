@@ -140,3 +140,81 @@ Contributions are welcome. Please open an issue to discuss proposed changes befo
 ## License
 
 This project is licensed under the [Apache License 2.0](LICENSE).
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.7 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 5.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | 6.54.0 |
+
+## Modules
+
+| Name | Source | Version |
+| ---- | ------ | ------- |
+| <a name="module_eks"></a> [eks](#module\_eks) | app.terraform.io/jose-merchan/eks/aws | 0.0.0 |
+| <a name="module_vpc"></a> [vpc](#module\_vpc) | app.terraform.io/jose-merchan/vpc/aws | 0.0.0 |
+
+## Resources
+
+| Name | Type |
+| ---- | ---- |
+| [aws_availability_zones.available](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/availability_zones) | data source |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_authentication_mode"></a> [authentication\_mode](#input\_authentication\_mode) | EKS cluster authentication mode. API\_AND\_CONFIG\_MAP supports both EKS access entries and the legacy aws-auth ConfigMap. | `string` | `"API_AND_CONFIG_MAP"` | no |
+| <a name="input_availability_zones"></a> [availability\_zones](#input\_availability\_zones) | Availability zones for subnet creation. Auto-discovered from AWS when empty. Minimum two required by EKS. | `list(string)` | `[]` | no |
+| <a name="input_cluster_endpoint_public_access"></a> [cluster\_endpoint\_public\_access](#input\_cluster\_endpoint\_public\_access) | Whether the EKS API server endpoint is reachable from the public internet. Defaults to false (Security Hub EKS.1). | `bool` | `false` | no |
+| <a name="input_cluster_endpoint_public_access_cidrs"></a> [cluster\_endpoint\_public\_access\_cidrs](#input\_cluster\_endpoint\_public\_access\_cidrs) | CIDR blocks allowed to reach the public endpoint. Only applies when cluster\_endpoint\_public\_access = true. Should be restricted to known CIDRs in production. | `list(string)` | <pre>[<br/>  "0.0.0.0/0"<br/>]</pre> | no |
+| <a name="input_cluster_log_retention_in_days"></a> [cluster\_log\_retention\_in\_days](#input\_cluster\_log\_retention\_in\_days) | CloudWatch log group retention in days. Must be a valid CloudWatch retention value. | `number` | `90` | no |
+| <a name="input_cluster_log_types"></a> [cluster\_log\_types](#input\_cluster\_log\_types) | Control plane log types to send to CloudWatch. Defaults to all five types (Security Hub EKS.8). | `list(string)` | <pre>[<br/>  "api",<br/>  "audit",<br/>  "authenticator",<br/>  "controllerManager",<br/>  "scheduler"<br/>]</pre> | no |
+| <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Name of the EKS cluster. Must be 1-100 characters, alphanumeric, hyphens, or underscores. | `string` | n/a | yes |
+| <a name="input_enable_irsa"></a> [enable\_irsa](#input\_enable\_irsa) | Enable the OIDC provider for IAM Roles for Service Accounts (IRSA). Defaults to true. | `bool` | `true` | no |
+| <a name="input_enable_vpc_flow_logs"></a> [enable\_vpc\_flow\_logs](#input\_enable\_vpc\_flow\_logs) | Enable VPC Flow Logs for the created VPC. Recommended for production environments. | `bool` | `false` | no |
+| <a name="input_environment"></a> [environment](#input\_environment) | Environment identifier applied to all resource tags (e.g. "dev", "staging", "prod", "sandbox"). | `string` | n/a | yes |
+| <a name="input_kms_key_enabled"></a> [kms\_key\_enabled](#input\_kms\_key\_enabled) | Create and attach a customer-managed KMS key for Kubernetes secrets envelope encryption. Defaults to true (Security Hub EKS.3). | `bool` | `true` | no |
+| <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | Kubernetes version for the EKS cluster control plane (e.g. "1.32"). Must be MAJOR.MINOR format. | `string` | n/a | yes |
+| <a name="input_node_capacity_type"></a> [node\_capacity\_type](#input\_node\_capacity\_type) | Node group capacity type. ON\_DEMAND provides consistent availability; SPOT reduces cost with interruption risk. | `string` | `"ON_DEMAND"` | no |
+| <a name="input_node_desired_size"></a> [node\_desired\_size](#input\_node\_desired\_size) | Desired number of worker nodes at cluster creation. Must be between node\_min\_size and node\_max\_size. | `number` | n/a | yes |
+| <a name="input_node_disk_size"></a> [node\_disk\_size](#input\_node\_disk\_size) | EBS root volume size in GiB for worker nodes. | `number` | `20` | no |
+| <a name="input_node_instance_types"></a> [node\_instance\_types](#input\_node\_instance\_types) | List of EC2 instance types for the managed node group (e.g. ["t3.medium"]). | `list(string)` | n/a | yes |
+| <a name="input_node_max_size"></a> [node\_max\_size](#input\_node\_max\_size) | Maximum number of worker nodes in the managed node group. Must be >= node\_min\_size. | `number` | n/a | yes |
+| <a name="input_node_min_size"></a> [node\_min\_size](#input\_node\_min\_size) | Minimum number of worker nodes in the managed node group. | `number` | n/a | yes |
+| <a name="input_one_nat_gateway_per_az"></a> [one\_nat\_gateway\_per\_az](#input\_one\_nat\_gateway\_per\_az) | When true, one NAT gateway is created per AZ (high availability). When false, a single shared NAT gateway is used (cost saving). | `bool` | `false` | no |
+| <a name="input_private_subnet_cidrs"></a> [private\_subnet\_cidrs](#input\_private\_subnet\_cidrs) | CIDR blocks for private subnets, one per availability zone. /20 or larger recommended for node and pod IP allocation. | `list(string)` | <pre>[<br/>  "10.0.1.0/24",<br/>  "10.0.2.0/24"<br/>]</pre> | no |
+| <a name="input_private_subnet_ids"></a> [private\_subnet\_ids](#input\_private\_subnet\_ids) | IDs of existing private subnets for worker nodes. Required when vpc\_id is provided; ignored when creating a new VPC. | `list(string)` | `[]` | no |
+| <a name="input_public_subnet_cidrs"></a> [public\_subnet\_cidrs](#input\_public\_subnet\_cidrs) | CIDR blocks for public subnets, one per availability zone. Only used when creating a new VPC. | `list(string)` | <pre>[<br/>  "10.0.101.0/24",<br/>  "10.0.102.0/24"<br/>]</pre> | no |
+| <a name="input_public_subnet_ids"></a> [public\_subnet\_ids](#input\_public\_subnet\_ids) | IDs of existing public subnets for load balancer ENIs. Required when vpc\_id is provided; ignored when creating a new VPC. | `list(string)` | `[]` | no |
+| <a name="input_tags"></a> [tags](#input\_tags) | Additional tags merged onto all taggable resources. Consumer-provided tags take precedence over module defaults. | `map(string)` | `{}` | no |
+| <a name="input_vpc_cidr"></a> [vpc\_cidr](#input\_vpc\_cidr) | CIDR block for the new VPC. Only used when vpc\_id is not provided. | `string` | `"10.0.0.0/16"` | no |
+| <a name="input_vpc_id"></a> [vpc\_id](#input\_vpc\_id) | ID of an existing VPC to use. When null or empty string, a new VPC is created automatically. | `string` | `null` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_cloudwatch_log_group_name"></a> [cloudwatch\_log\_group\_name](#output\_cloudwatch\_log\_group\_name) | Name of the CloudWatch log group for EKS control plane logs. |
+| <a name="output_cluster_arn"></a> [cluster\_arn](#output\_cluster\_arn) | ARN of the EKS cluster. |
+| <a name="output_cluster_certificate_authority_data"></a> [cluster\_certificate\_authority\_data](#output\_cluster\_certificate\_authority\_data) | Base64-encoded certificate authority data required for kubeconfig generation. |
+| <a name="output_cluster_endpoint"></a> [cluster\_endpoint](#output\_cluster\_endpoint) | URL of the EKS API server endpoint. |
+| <a name="output_cluster_iam_role_arn"></a> [cluster\_iam\_role\_arn](#output\_cluster\_iam\_role\_arn) | ARN of the IAM role attached to the EKS control plane. |
+| <a name="output_cluster_name"></a> [cluster\_name](#output\_cluster\_name) | Name of the EKS cluster. |
+| <a name="output_cluster_oidc_issuer_url"></a> [cluster\_oidc\_issuer\_url](#output\_cluster\_oidc\_issuer\_url) | OIDC issuer URL for configuring IAM Roles for Service Accounts (IRSA). |
+| <a name="output_cluster_security_group_id"></a> [cluster\_security\_group\_id](#output\_cluster\_security\_group\_id) | ID of the cluster security group created by EKS. |
+| <a name="output_node_iam_role_arn"></a> [node\_iam\_role\_arn](#output\_node\_iam\_role\_arn) | ARN of the IAM role attached to EKS managed nodes. |
+| <a name="output_node_security_group_id"></a> [node\_security\_group\_id](#output\_node\_security\_group\_id) | ID of the shared node security group. |
+| <a name="output_oidc_provider_arn"></a> [oidc\_provider\_arn](#output\_oidc\_provider\_arn) | ARN of the OIDC identity provider — used to create IRSA IAM role trust policies. |
+| <a name="output_private_subnet_ids"></a> [private\_subnet\_ids](#output\_private\_subnet\_ids) | IDs of the private subnets used by worker nodes. |
+| <a name="output_public_subnet_ids"></a> [public\_subnet\_ids](#output\_public\_subnet\_ids) | IDs of the public subnets used by load balancer ENIs. |
+| <a name="output_vpc_id"></a> [vpc\_id](#output\_vpc\_id) | ID of the VPC used by the EKS cluster (created or provided). |
+<!-- END_TF_DOCS -->

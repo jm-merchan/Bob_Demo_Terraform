@@ -9,6 +9,12 @@ argument-hint: "[feature-name] - Implement from existing specs/{feature}/policy-
 
 Builds and validates a tfpolicy policy set from `specs/{FEATURE}/policy-design.md` using TDD. The policy engine is tfpolicy. If the user pushes for a different engine, redirect them to the constitution and the exception process — do not silently switch.
 
+## Phase 0: Load constitution
+
+Activate the `tf-policy-constitution` skill before any other step. It contains the authoritative policy rules and design template. If this skill and the constitution disagree, the constitution wins.
+
+
+
 Post progress at key steps: `bash .foundations/scripts/bash/post-issue-progress.sh $ISSUE_NUMBER "<step>" "<status>" "<summary>"`. Valid status values: `started`, `in-progress`, `complete`, `failed`.
 Checkpoint after each phase: `bash .foundations/scripts/bash/checkpoint-commit.sh --dir . --prefix feat "<step_name>"`. The `<step_name>` must be a short hyphenated identifier (e.g., `"test-scaffold"`, `"checklist-item-A"`, `"validation"`) — NOT a sentence or file path.
 
