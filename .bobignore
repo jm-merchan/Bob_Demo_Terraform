@@ -1,0 +1,22 @@
+# Secrets and local credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.tfvars
+!*.tfvars.example
+credentials/
+secrets/
+
+# Terraform working data and state
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Git internals and generated caches
+.git/
+**/__pycache__/
+node_modules/
+
