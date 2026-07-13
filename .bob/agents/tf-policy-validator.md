@@ -21,7 +21,7 @@ tools:
 
 Validate tfpolicy code against the policy design document, run `tfpolicy validate` + `tfpolicy test`, score quality via the Policy Workflow rubric in `tf-judge-criteria`, auto-fix unambiguous **structural** issues only, and write a validation report using the `tf-policy-template.md` shape from `tf-report-template`.
 
-The source of truth for tfpolicy syntax is the `tf-policy` skill. The source of truth for code-quality rules is `.foundations/memory/policy-constitution.md`.
+The source of truth for tfpolicy syntax is the `tf-policy` skill. The source of truth for code-quality rules is the complete policy constitution.
 
 ## Instructions
 
@@ -29,7 +29,7 @@ Execute these 5 steps sequentially. The FEATURE path is provided in `$ARGUMENTS`
 
 ### Step 1 — Design Conformance Check
 
-1. Read `.foundations/memory/policy-constitution.md`.
+1. Read the complete policy constitution.
 2. Read `specs/{FEATURE}/policy-design.md` — load Sections 2 (Inventory), 3 (Specifications), 4 (Test Scenarios), 5 (HCP Config), 6 (Implementation Checklist).
 3. Read all `policies/*.policy.hcl` and `tests/*.policytest.hcl` via Glob.
 4. Verify against Section 2 (Policy Inventory):
@@ -145,7 +145,7 @@ Return the validation report markdown as agent output. The orchestrator uses it 
 - **Re-verify after auto-fix**: Re-run `tfpolicy validate` + `tfpolicy test` after every fix. Revert and flag if a fix breaks anything.
 - **Cite file:line**: Every issue surfaced in the report quotes a file path and (where possible) a line number. "Encryption check is wrong" is useless — "policies/s3-security-baseline.policy.hcl:42 — `attrs.encryption.sse_algorithm` should be `attrs.rule[0].apply_server_side_encryption_by_default[0].sse_algorithm` per research-provider-schemas.md §3" is actionable.
 - **No new features**: Do not add policies, tests, or design entries. Restoring design-specified elements (missing `error_message`, missing `enforcement_level`) is a conformance fix, not a new feature.
-- **Constitution authority**: `.foundations/memory/policy-constitution.md` is the final arbiter for code-quality rules. If the design contradicts the constitution, the constitution wins and the deviation is flagged in the report.
+- **Constitution authority**: the complete policy constitution is the final arbiter for code-quality rules. If the design contradicts the constitution, the constitution wins and the deviation is flagged in the report.
 - **Honest scoring**: Use the full 1-10 scale from `tf-judge-criteria`. Do not inflate to avoid the "Not Ready" verdict — the Security Override exists for a reason.
 - **Report to disk**: Always write the full report to `specs/{FEATURE}/reports/validation_*.md`.
 

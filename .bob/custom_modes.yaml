@@ -9,9 +9,9 @@ customModes:
       Use this mode for Terraform module, provider, consumer, or policy planning,
       implementation, testing, validation, and pull-request workflows.
     customInstructions: >-
-      Read AGENTS.md and .bob/rules/ before acting. Use the matching tf-*-plan or
-      tf-*-implement skill. Preserve human approval gates and constitution rules.
-      Translate legacy harness tool names using .bob/rules/20-harness-adapter.md.
+      Apply the automatically loaded project rules, complete constitutions, design
+      templates, specialist role definitions, and tool mapping. Activate the matching
+      tf-*-plan or tf-*-implement skill. Preserve every human approval gate.
     groups:
       - read
       - edit
@@ -23,4 +23,3 @@ customModes:
       - subtask
       - subagent
       - mode
-

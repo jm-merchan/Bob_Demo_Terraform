@@ -8,10 +8,13 @@ Code and GitHub Copilot integrations remain available; Bob uses the project file
 - `AGENTS.md` supplies persistent repository context.
 - `.bob/skills/` contains the 32 upstream Agent Skills, including all eight orchestrators.
 - `.bob/commands/` exposes the same eight `/tf-...` entry points.
-- `.bob/agents/` contains the 20 specialist role definitions used to prompt Bob subagents.
+- All 20 specialist role definitions are automatically loaded as explicit project rules and are
+  also retained in `.bob/agents/` as portable source definitions.
 - `.bob/mcp.json` configures Terraform and AWS documentation MCP servers.
 - `.bob/custom_modes.yaml` adds a `Terraform SDD` mode with the required tool groups.
-- `.bob/rules/` translates legacy harness tool wording and enforces cross-cutting guardrails.
+- `.bob/rules/` contains the full text of all four constitutions and all four design templates,
+  translates legacy harness tool wording, and enforces cross-cutting guardrails. Bob receives the
+  actual rules automatically instead of being told to open another file.
 - `.bobignore` prevents Bob from reading common secrets, Terraform state, and generated data.
 
 ## Start
@@ -39,4 +42,3 @@ and expose them to the skill as the logical `$ARGUMENTS` input.
 
 MCP servers run local processes with the same operating-system permissions as Bob. Keep approvals
 enabled, pin server versions for regulated use, and validate the server source before deployment.
-

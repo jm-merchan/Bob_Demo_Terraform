@@ -23,7 +23,7 @@ Produce a single `specs/{FEATURE}/provider-design-{resource}.md` from clarified 
 
 ## Instructions
 
-1. **Read Context**: Load `.foundations/memory/provider-constitution.md` and `.foundations/templates/provider-design-template.md`. The template defines the authoritative section structure and rules for all 7 sections.
+1. **Apply Loaded Context**: Apply the complete provider constitution and the complete provider design format. The template defines the authoritative section structure and rules for all 7 sections.
 
 2. **Parse Input**: Extract from `$ARGUMENTS`:
    - The FEATURE path (e.g., `specs/042-storage-bucket/`)

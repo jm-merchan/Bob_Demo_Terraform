@@ -69,7 +69,7 @@ Omit this section if all tests pass.}}
 
 ## Constitution Compliance
 
-Per `.foundations/memory/policy-constitution.md`. Each row = one MUST rule.
+Per the complete policy constitution. Each row = one MUST rule.
 
 | §       | MUST Rule                                                                | Result        |
 | ------- | ------------------------------------------------------------------------ | ------------- |

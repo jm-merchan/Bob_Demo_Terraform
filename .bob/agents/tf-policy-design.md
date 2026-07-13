@@ -22,7 +22,7 @@ Produce a single `specs/{FEATURE}/policy-design.md` from clarified requirements 
 
 ## Instructions
 
-1. **Read Context**: Load `.foundations/memory/policy-constitution.md` (for policy structure, naming conventions, enforcement defaults, testing patterns) and `.foundations/templates/policy-design-template.md` (for the authoritative section structure and template rules).
+1. **Apply Loaded Context**: Apply the complete policy constitution (for policy structure, naming conventions, enforcement defaults, testing patterns) and the complete policy design format (for the authoritative section structure and template rules).
 
 2. **Parse Input**: Extract from `$ARGUMENTS`:
    - The FEATURE path (e.g., `specs/s3-encryption-policies/`)

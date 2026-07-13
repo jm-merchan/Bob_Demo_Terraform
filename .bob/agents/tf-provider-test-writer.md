@@ -21,7 +21,7 @@ Convert `provider-design-{resource}.md` §5 (Test Scenarios) into Go acceptance 
 
 ## Instructions
 
-1. **Read Constitution**: Load `.foundations/memory/provider-constitution.md` for test conventions (§1.3, §2.2, §5).
+1. **Apply Constitution**: Apply the complete provider constitution for test conventions (§1.3, §2.2, §5).
 2. **Read Design**: Load design file from `$ARGUMENTS`. Extract §2 (Schema — attribute names, types, resource type name) and §5 (Test Scenarios — all 6 scenario groups with function names, config function names, check functions, steps).
 3. **Determine Paths**: Test files go in `internal/service/<service>/`. Short resource name determines naming (e.g., `Example` for `TestAccExample_basic`).
 4. **Write Test File** (`<resource_name>_test.go`):

@@ -22,7 +22,7 @@ Produce a single `specs/{FEATURE}/consumer-design.md` from clarified requirement
 
 ## Instructions
 
-1. **Read Context**: Load `.foundations/memory/consumer-constitution.md` (for module-first rules §1.1, security §1.2, workspace §1.3, file layout §2.1, naming §2.2, variable conventions §2.3, credentials §3.1, tags §3.3) and `.foundations/templates/consumer-design-template.md` (for the authoritative section structure and template rules).
+1. **Apply Loaded Context**: Apply the complete consumer constitution (for module-first rules §1.1, security §1.2, workspace §1.3, file layout §2.1, naming §2.2, variable conventions §2.3, credentials §3.1, tags §3.3) and the complete consumer design format (for the authoritative section structure and template rules).
 
 2. **Parse Input**: Extract from `$ARGUMENTS`:
    - The FEATURE path (e.g., `specs/order-service/`)

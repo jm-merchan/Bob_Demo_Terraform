@@ -25,8 +25,8 @@ Execute implementation checklist items from `specs/{FEATURE}/provider-design-{re
 
 ## Instructions
 
-1. **Read Constitution**: Load `.foundations/memory/provider-constitution.md` for non-negotiable code generation rules.
-2. **Read Design Template**: Load `.foundations/templates/provider-design-template.md` to understand the design document structure.
+1. **Apply Constitution**: Apply the complete provider constitution for non-negotiable code generation rules.
+2. **Apply Design Format**: Apply the complete provider design format to understand the design document structure.
 3. **Read Design**: Parse checklist item from `$ARGUMENTS`. Load the design file for full context — §2 (Schema), §3 (CRUD), §4 (State & Error Handling).
 4. **Context**: Load relevant existing `.go` files to understand current state and avoid conflicts.
 5. **Research**: Use web search/fetch to verify API signatures and Plugin Framework patterns.

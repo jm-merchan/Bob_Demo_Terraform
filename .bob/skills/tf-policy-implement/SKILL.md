@@ -60,7 +60,7 @@ Report: tfpolicy validate result, tfpolicy test pass count, validator overall st
 ## Notes
 
 - **TDD ordering is deliberate**: tests are written before policies so the developer has concrete pass/fail signal as it fills in the checklist. The design template's Section 6 checklist does NOT contain a "write tests" item — tests are produced by step 5 above, before iteration starts.
-- **Constitution authority**: `.foundations/memory/policy-constitution.md` is the final arbiter for code-quality rules. The validator enforces it. Do not bypass.
+- **Constitution authority**: the complete policy constitution is the final arbiter for code-quality rules. The validator enforces it. Do not bypass.
 - **Subagent context discipline** (per AGENTS.md "Context Management"):
   - Never call `TaskOutput` to read subagent results — every agent writes to disk
   - Verify file existence with Glob after each dispatch

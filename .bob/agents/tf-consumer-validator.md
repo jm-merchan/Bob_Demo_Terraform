@@ -28,7 +28,7 @@ tools:
 
 ### Step 1 — Design Conformance
 
-1. Read `.foundations/memory/consumer-constitution.md`
+1. Read the complete consumer constitution
 2. Read `specs/{FEATURE}/consumer-design.md`
 3. Read all `.tf` files in the project root via Glob
 4. Verify:

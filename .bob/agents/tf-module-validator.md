@@ -26,7 +26,7 @@ Execute the following 5 steps sequentially. The design file path is provided in 
 
 ### Step 1 — Design Conformance Check
 
-1. Read `.foundations/memory/module-constitution.md` for code quality rules
+1. Read the complete module constitution for code quality rules
 2. Read the design file (`specs/{FEATURE}/design.md`) and load all sections
 3. Read all `.tf` files in the project root and `tests/*.tftest.hcl` via Glob
 4. Verify resource inventory matches §2 Resources & Architecture:

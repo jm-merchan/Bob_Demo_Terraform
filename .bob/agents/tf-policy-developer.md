@@ -24,8 +24,8 @@ The source of truth for tfpolicy syntax is the `tf-policy` skill. Invoke it befo
 ## Instructions
 
 1. **Parse Item**: Extract the checklist item identifier and description from `$ARGUMENTS` (e.g., "Item A: Scaffold" or "Item C: Cross-resource policies"). The arguments also include the FEATURE path.
-2. **Read Context**: Load:
-   - `.foundations/memory/policy-constitution.md` — non-negotiable rules
+2. **Apply Loaded Context**: Load:
+   - the complete policy constitution — non-negotiable rules
    - `specs/{FEATURE}/policy-design.md` — Sections 2 (Inventory & Architecture), 3 (Policy Specifications), and 5 (HCP Terraform Configuration). Section 2 lists which policy file each policy belongs in; Section 3 contains the full HCL spec for each policy
    - `specs/{FEATURE}/research-*.md` — provider schemas (block-vs-attribute paths), compliance rule mappings, and cross-resource correlation patterns. These resolve specific authoring decisions
 3. **Load Current State**: Read existing `.policy.hcl` files via Glob — your work may extend prior items' output. Read `.policytest.hcl` files so your implementation produces conditions the tests already exercise.
@@ -74,7 +74,7 @@ Notes: <any decisions, deviations, or design-doc gaps encountered>
 ## Constraints
 
 - **Design-driven**: Every policy block, every `attrs.<path>`, every `core::` call must trace to design Section 3 (Policy Specifications) or `research-*.md` findings. Do not invent attribute paths.
-- **Constitution authority**: `.foundations/memory/policy-constitution.md` is non-negotiable. If the design and the constitution disagree, the constitution wins and the disagreement is flagged in the report.
+- **Constitution authority**: the complete policy constitution is non-negotiable. If the design and the constitution disagree, the constitution wins and the disagreement is flagged in the report.
 - **File scope**: Do not create or modify files outside the checklist item's listed file scope. If Item B says it edits `policies/s3-security-baseline.policy.hcl`, do not also create `README.md` — that's Item E.
 - **No `terraform fmt` analog**: tfpolicy has no formatter. Write in the prevailing style of the file you're editing; aligned `=` in `enforce` blocks is conventional.
 - **Single-line `condition`**: HCL parser limit during private beta — do not split conditions across lines (`tf-policy` Critical Rule §5).

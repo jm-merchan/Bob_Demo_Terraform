@@ -27,7 +27,7 @@ Validate Terraform provider code against the design document, run build and stat
 
 ### Step 1 — Design Conformance
 
-1. Read `.foundations/memory/provider-constitution.md` and the design file (`specs/{FEATURE}/provider-design-{resource}.md`).
+1. Read the complete provider constitution and the design file (`specs/{FEATURE}/provider-design-{resource}.md`).
 2. Read all `.go` files in `internal/service/<service>/`.
 3. Verify: schema attributes match §2 (names, Go types, Required/Optional/Computed, ForceNew, Sensitive, validators, plan modifiers); CRUD operations match §3; error handling matches §4 (finder functions, error types); test functions match §5 (all 6 scenario groups).
 4. Report mismatches as a structured checklist.
