@@ -1,303 +1,198 @@
-# Generated from specs/001-eks-cluster-bob/design.md Section 5 -- Unit: Secure Defaults
-# The eks/vpc modules use terraform-aws-modules internally with data source count expressions
-# that depend on computed values. We use override_module to stub those modules and test
-# only root module logic (locals, variable defaults, module instantiation counts).
+# Generated from specs/006-kubernetes/design.md Section 5
 
-mock_provider "aws" {
-  mock_data "aws_availability_zones" {
-    defaults = {
-      names = ["us-east-1a", "us-east-1b"]
-    }
-  }
-}
-mock_provider "tls" {}
-mock_provider "time" {}
-mock_provider "null" {}
-mock_provider "cloudinit" {}
+mock_provider "kubernetes" {}
 
-# Scenario: "Secure Defaults -- public endpoint is OFF by default"
-run "test_public_endpoint_off_by_default" {
+# Scenario: "Secure Defaults (basic)"
+run "test_secure_defaults" {
   command = plan
 
   variables {
-    cluster_name        = "test-basic"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    app_name          = "backend"
+    namespace         = "app-production"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 3
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "test-api-key"
   }
 
-  # Stub out the module internals — we test root-level defaults, not module internals
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-basic"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-basic"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-basic/cluster"
-    }
-  }
-
+  # Deployment is planned — name matches app_name
   assert {
-    condition     = var.cluster_endpoint_public_access == false
-    error_message = "cluster_endpoint_public_access must default to false (Security Hub EKS.1)."
-  }
-}
-
-# Scenario: "Secure Defaults -- KMS encryption is ON by default"
-run "test_kms_enabled_by_default" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-basic"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    condition     = kubernetes_deployment_v1.this.metadata[0].name == "backend"
+    error_message = "Deployment name must equal app_name 'backend'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-basic"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-basic"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-basic/cluster"
-    }
-  }
-
+  # Deployment namespace is set
   assert {
-    condition     = var.kms_key_enabled == true
-    error_message = "kms_key_enabled must default to true (Security Hub EKS.3)."
-  }
-}
-
-# Scenario: "Secure Defaults -- all 5 control plane log types enabled"
-run "test_all_log_types_enabled_by_default" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-basic"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    condition     = kubernetes_deployment_v1.this.metadata[0].namespace == "app-production"
+    error_message = "Deployment must be placed in the 'app-production' namespace"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-basic"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-basic"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-basic/cluster"
-    }
-  }
-
+  # Deployment label app.kubernetes.io/name is set
   assert {
-    condition     = length(var.cluster_log_types) == 5
-    error_message = "All 5 control plane log types must be enabled by default (Security Hub EKS.8)."
-  }
-}
-
-# Scenario: "Secure Defaults -- IRSA enabled by default"
-run "test_irsa_enabled_by_default" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-basic"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    condition     = kubernetes_deployment_v1.this.metadata[0].labels["app.kubernetes.io/name"] == "backend"
+    error_message = "Deployment must carry label app.kubernetes.io/name == 'backend'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-basic"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-basic"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-basic/cluster"
-    }
-  }
-
+  # Deployment label managed-by is terraform
   assert {
-    condition     = var.enable_irsa == true
-    error_message = "enable_irsa must default to true."
-  }
-}
-
-# Scenario: "Secure Defaults -- default tags include ManagedBy=terraform"
-run "test_default_tags_present" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-basic"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    condition     = kubernetes_deployment_v1.this.metadata[0].labels["app.kubernetes.io/managed-by"] == "terraform"
+    error_message = "Deployment must carry label app.kubernetes.io/managed-by == 'terraform'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-basic"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-basic"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-basic/cluster"
-    }
-  }
-
+  # Replica count is coerced to string
   assert {
-    condition     = local.default_tags["ManagedBy"] == "terraform"
-    error_message = "default_tags must include ManagedBy=terraform."
+    condition     = kubernetes_deployment_v1.this.spec[0].replicas == "3"
+    error_message = "Deployment replicas must be coerced to the string '3'"
   }
 
+  # Pod selector label is stable
   assert {
-    condition     = local.default_tags["Environment"] == "dev"
-    error_message = "default_tags must include the Environment tag set to the environment variable value."
-  }
-}
-
-# Scenario: "Secure Defaults -- VPC is created when vpc_id not provided"
-run "test_vpc_created_when_no_vpc_id" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-basic"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    condition     = kubernetes_deployment_v1.this.spec[0].selector[0].match_labels["app.kubernetes.io/name"] == "backend"
+    error_message = "Pod selector match_labels must include app.kubernetes.io/name == 'backend'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-basic"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-basic"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-basic/cluster"
-    }
-  }
-
+  # Pod template carries matching label
   assert {
-    condition     = local.create_vpc == true
-    error_message = "create_vpc must be true when vpc_id is not provided."
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].metadata[0].labels["app.kubernetes.io/name"] == "backend"
+    error_message = "Pod template labels must include app.kubernetes.io/name == 'backend'"
   }
 
+  # Container image is set
   assert {
-    condition     = length(module.vpc) == 1
-    error_message = "VPC module must be instantiated when vpc_id is not provided."
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].image == "de.icr.io/san-clients/backend:latest"
+    error_message = "Container image must equal the supplied image variable"
+  }
+
+  # Container port defaults to 8080
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].port[0].container_port == 8080
+    error_message = "Container port must default to 8080"
+  }
+
+  # CPU request default is set
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].resources[0].requests["cpu"] == "250m"
+    error_message = "CPU request must default to '250m'"
+  }
+
+  # Memory request default is set
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].resources[0].requests["memory"] == "256Mi"
+    error_message = "Memory request must default to '256Mi'"
+  }
+
+  # CPU limit default is set
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].resources[0].limits["cpu"] == "500m"
+    error_message = "CPU limit must default to '500m'"
+  }
+
+  # Memory limit default is set
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].resources[0].limits["memory"] == "512Mi"
+    error_message = "Memory limit must default to '512Mi'"
+  }
+
+  # Pod security context non-root enforced
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].security_context[0].run_as_non_root == true
+    error_message = "Pod security context must enforce run_as_non_root = true"
+  }
+
+  # Pod security context run-as-user
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].security_context[0].run_as_user == "1000"
+    error_message = "Pod security context must set run_as_user = '1000'"
+  }
+
+  # Pod security context fs-group
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].security_context[0].fs_group == "2000"
+    error_message = "Pod security context must set fs_group = '2000'"
+  }
+
+  # Container no privilege escalation
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].allow_privilege_escalation == false
+    error_message = "Container security context must set allow_privilege_escalation = false"
+  }
+
+  # Container not privileged
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].privileged == false
+    error_message = "Container security context must set privileged = false"
+  }
+
+  # Container read-only root filesystem
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].read_only_root_filesystem == true
+    error_message = "Container security context must enforce read_only_root_filesystem = true"
+  }
+
+  # Container drops ALL capabilities
+  assert {
+    condition     = contains(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].capabilities[0].drop, "ALL")
+    error_message = "Container must drop ALL Linux capabilities"
+  }
+
+  # Liveness probe path defaults
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe[0].http_get[0].path == "/health/live"
+    error_message = "Liveness probe path must default to '/health/live'"
+  }
+
+  # Readiness probe path defaults
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe[0].http_get[0].path == "/health/ready"
+    error_message = "Readiness probe path must default to '/health/ready'"
+  }
+
+  # Image pull secret reference is present — [plan-unknown] value, existence check only
+  assert {
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].image_pull_secrets) >= 1
+    error_message = "Deployment must reference at least one image pull secret"
+  }
+
+  # Service is planned — name matches app_name
+  assert {
+    condition     = kubernetes_service_v1.this.metadata[0].name == "backend"
+    error_message = "Service name must equal app_name 'backend'"
+  }
+
+  # Service type defaults to ClusterIP
+  assert {
+    condition     = kubernetes_service_v1.this.spec[0].type == "ClusterIP"
+    error_message = "Service type must default to 'ClusterIP' (no external exposure)"
+  }
+
+  # Service selector matches deployment labels
+  assert {
+    condition     = kubernetes_service_v1.this.spec[0].selector["app.kubernetes.io/name"] == "backend"
+    error_message = "Service selector must include app.kubernetes.io/name == 'backend'"
+  }
+
+  # Service target port matches container port
+  assert {
+    condition     = kubernetes_service_v1.this.spec[0].port[0].target_port == "8080"
+    error_message = "Service target_port must equal '8080' (coerced to string from container_port default)"
+  }
+
+  # Secret is planned with correct type
+  assert {
+    condition     = kubernetes_secret_v1.registry.type == "kubernetes.io/dockerconfigjson"
+    error_message = "Registry secret must have type 'kubernetes.io/dockerconfigjson'"
+  }
+
+  # Secret namespace matches
+  assert {
+    condition     = kubernetes_secret_v1.registry.metadata[0].namespace == "app-production"
+    error_message = "Registry secret must be placed in the 'app-production' namespace"
+  }
+
+  # Secret cluster IP — [plan-unknown] during mock plan, existence check only
+  assert {
+    condition     = kubernetes_service_v1.this.spec[0] != null
+    error_message = "Service spec must be present (cluster_ip is plan-unknown with mock provider)"
   }
 }

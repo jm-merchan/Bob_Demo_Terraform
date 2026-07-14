@@ -10,7 +10,7 @@
       }
     },
     "github": {
-      "command": "/usr/local/bin/docker",
+      "command": "docker",
       "args": [
         "run",
         "-i",
@@ -33,7 +33,7 @@
       }
     },
     "terraform": {
-      "command": "/usr/local/bin/docker",
+      "command": "docker",
       "args": [
         "run",
         "-i",

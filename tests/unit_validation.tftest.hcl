@@ -1,778 +1,494 @@
-# Generated from specs/001-eks-cluster-bob/design.md Section 5 -- Unit: Validation
+# Generated from specs/006-kubernetes/design.md Section 5
 
-mock_provider "aws" {
-  mock_data "aws_availability_zones" {
-    defaults = {
-      names = ["us-east-1a", "us-east-1b"]
-    }
-  }
-}
-mock_provider "tls" {}
-mock_provider "time" {}
-mock_provider "null" {}
-mock_provider "cloudinit" {}
+mock_provider "kubernetes" {}
 
-# --- Validation Error Cases (expect_failures) ---
+# ============================================================
+# Validation Errors (reject) — expect_failures cases
+# ============================================================
 
-# Empty cluster_name rejected
-run "test_empty_cluster_name_rejected" {
+# Scenario: "Validation Errors - replicas = 0 rejected"
+run "test_replicas_zero_rejected" {
   command = plan
 
   variables {
-    cluster_name        = ""
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 0
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "stubbed"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/stubbed"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/stubbed/cluster"
-    }
-  }
-
-  expect_failures = [var.cluster_name]
+  expect_failures = [var.replicas]
 }
 
-# kubernetes_version with 'v' prefix rejected
-run "test_kubernetes_version_with_v_prefix_rejected" {
+# Scenario: "Validation Errors - replicas = 101 rejected"
+run "test_replicas_101_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "v1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 101
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.kubernetes_version]
+  expect_failures = [var.replicas]
 }
 
-# kubernetes_version = "latest" rejected
-run "test_kubernetes_version_latest_rejected" {
+# Scenario: "Validation Errors - namespace uppercase rejected"
+run "test_namespace_uppercase_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "latest"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    app_name          = "backend"
+    namespace         = "MyNamespace"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.kubernetes_version]
+  expect_failures = [var.namespace]
 }
 
-# Invalid environment value rejected
-run "test_invalid_environment_rejected" {
+# Scenario: "Validation Errors - namespace leading hyphen rejected"
+run "test_namespace_leading_hyphen_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "production"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    app_name          = "backend"
+    namespace         = "-invalid"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.environment]
+  expect_failures = [var.namespace]
 }
 
-# node_min_size = 0 rejected
-run "test_node_min_size_zero_rejected" {
+# Scenario: "Validation Errors - namespace trailing hyphen rejected"
+run "test_namespace_trailing_hyphen_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 0
-    node_max_size       = 3
-    node_desired_size   = 1
+    app_name          = "backend"
+    namespace         = "invalid-"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.node_min_size]
+  expect_failures = [var.namespace]
 }
 
-# node_disk_size below minimum rejected
-run "test_node_disk_size_below_minimum_rejected" {
+# Scenario: "Validation Errors - namespace empty rejected"
+run "test_namespace_empty_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    node_disk_size      = 19
+    app_name          = "backend"
+    namespace         = ""
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.node_disk_size]
+  expect_failures = [var.namespace]
 }
 
-# Invalid vpc_cidr rejected
-run "test_invalid_vpc_cidr_rejected" {
+# Scenario: "Validation Errors - image empty rejected"
+run "test_image_empty_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    vpc_cidr            = "not-a-cidr"
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = ""
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.vpc_cidr]
+  expect_failures = [var.image]
 }
 
-# Only 1 AZ provided rejected
-run "test_single_availability_zone_rejected" {
+# Scenario: "Validation Errors - app_name uppercase rejected"
+run "test_app_name_uppercase_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    availability_zones  = ["us-east-1a"]
+    app_name          = "UPPER"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.availability_zones]
+  expect_failures = [var.app_name]
 }
 
-# Invalid authentication_mode rejected
-run "test_invalid_authentication_mode_rejected" {
+# Scenario: "Validation Errors - app_name leading hyphen rejected"
+run "test_app_name_leading_hyphen_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    authentication_mode = "INVALID"
+    app_name          = "-starts-with-hyphen"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.authentication_mode]
+  expect_failures = [var.app_name]
 }
 
-# Invalid node_capacity_type rejected
-run "test_invalid_node_capacity_type_rejected" {
+# Scenario: "Validation Errors - service_type ExternalName rejected"
+run "test_service_type_external_name_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    node_capacity_type  = "RESERVED"
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    service_type      = "ExternalName"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
-  }
-
-  expect_failures = [var.node_capacity_type]
+  expect_failures = [var.service_type]
 }
 
-# --- Boundary-pass cases (validation accepts) ---
-
-# Minimum valid cluster_name length
-run "test_minimum_valid_cluster_name" {
+# Scenario: "Validation Errors - container_port = 0 rejected"
+run "test_container_port_zero_rejected" {
   command = plan
 
   variables {
-    cluster_name        = "a"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    container_port    = 0
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
+  expect_failures = [var.container_port]
+}
+
+# Scenario: "Validation Errors - container_port = 65536 rejected"
+run "test_container_port_65536_rejected" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    container_port    = 65536
   }
 
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "a"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/a"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/a/cluster"
-    }
+  expect_failures = [var.container_port]
+}
+
+# Scenario: "Validation Errors - registry_secret_revision = 0 rejected"
+run "test_registry_secret_revision_zero_rejected" {
+  command = plan
+
+  variables {
+    app_name                 = "backend"
+    namespace                = "staging"
+    image                    = "de.icr.io/san-clients/backend:latest"
+    replicas                 = 1
+    registry_server          = "de.icr.io"
+    registry_username        = "iamapikey"
+    registry_password        = "key"
+    registry_secret_revision = 0
+  }
+
+  expect_failures = [var.registry_secret_revision]
+}
+
+# Scenario: "Validation Errors - registry_password empty rejected"
+run "test_registry_password_empty_rejected" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = ""
+  }
+
+  expect_failures = [var.registry_password]
+}
+
+# Scenario: "Validation Errors - liveness_path no leading slash rejected"
+run "test_liveness_path_no_leading_slash_rejected" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    liveness_path     = "no-leading-slash"
+  }
+
+  expect_failures = [var.liveness_path]
+}
+
+# Scenario: "Validation Errors - readiness_path no leading slash rejected"
+run "test_readiness_path_no_leading_slash_rejected" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    readiness_path    = "health/ready"
+  }
+
+  expect_failures = [var.readiness_path]
+}
+
+# ============================================================
+# Boundary-pass cases (validation accepts)
+# ============================================================
+
+# Scenario: "Validation Boundary - replicas = 1 (minimum valid)"
+run "test_replicas_minimum_boundary" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
   assert {
-    condition     = module.eks.cluster_name != null
-    error_message = "Single-character cluster_name at minimum boundary should be accepted."
+    condition     = kubernetes_deployment_v1.this.spec[0].replicas == "1"
+    error_message = "Minimum valid replicas (1) must be accepted and coerced to string '1'"
   }
 }
 
-# Valid kubernetes_version
-run "test_valid_kubernetes_version" {
+# Scenario: "Validation Boundary - replicas = 100 (maximum valid)"
+run "test_replicas_maximum_boundary" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-  }
-
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 100
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
   assert {
-    condition     = var.kubernetes_version == "1.32"
-    error_message = "Valid kubernetes_version format should be accepted."
+    condition     = kubernetes_deployment_v1.this.spec[0].replicas == "100"
+    error_message = "Maximum valid replicas (100) must be accepted and coerced to string '100'"
   }
 }
 
-# Minimum valid node_min_size
-run "test_minimum_valid_node_min_size" {
+# Scenario: "Validation Boundary - namespace single character"
+run "test_namespace_single_character" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 1
-  }
-
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
+    app_name          = "backend"
+    namespace         = "a"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
   assert {
-    condition     = var.node_min_size == 1
-    error_message = "node_min_size of 1 (minimum boundary) should be accepted."
+    condition     = kubernetes_secret_v1.registry.metadata[0].namespace == "a"
+    error_message = "Single-character namespace 'a' must be accepted; secret namespace must be set to 'a'"
   }
 }
 
-# Minimum valid node_disk_size
-run "test_minimum_valid_node_disk_size" {
+# Scenario: "Validation Boundary - namespace 63 characters (maximum)"
+run "test_namespace_63_characters" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    node_disk_size      = 20
-  }
-
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
+    app_name          = "backend"
+    namespace         = "my-app-namespace-that-is-exactly-sixty-three-characters-long1"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
   assert {
-    condition     = var.node_disk_size == 20
-    error_message = "node_disk_size of 20 GiB (minimum boundary) should be accepted."
+    condition     = kubernetes_secret_v1.registry.metadata[0].namespace == "my-app-namespace-that-is-exactly-sixty-three-characters-long1"
+    error_message = "63-character namespace must be accepted; metadata namespace must be set correctly"
   }
 }
 
-# Exactly 2 AZs accepted
-run "test_exactly_two_availability_zones_accepted" {
+# Scenario: "Validation Boundary - app_name single character"
+run "test_app_name_single_character" {
   command = plan
 
   variables {
-    cluster_name        = "test"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    availability_zones  = ["us-east-1a", "us-east-1b"]
-  }
-
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
+    app_name          = "x"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
   assert {
-    condition     = length(var.availability_zones) == 2
-    error_message = "Exactly 2 availability zones should be accepted."
+    condition     = kubernetes_deployment_v1.this.metadata[0].name == "x"
+    error_message = "Single-character app_name 'x' must be accepted; deployment name must be 'x'"
   }
 }
 
-# Minimum valid cluster_log_retention_in_days
-run "test_minimum_log_retention" {
+# Scenario: "Validation Boundary - container_port = 1 (minimum valid)"
+run "test_container_port_minimum_boundary" {
   command = plan
 
   variables {
-    cluster_name                  = "test"
-    kubernetes_version            = "1.32"
-    environment                   = "dev"
-    node_instance_types           = ["t3.medium"]
-    node_min_size                 = 1
-    node_max_size                 = 3
-    node_desired_size             = 2
-    cluster_log_retention_in_days = 1
-  }
-
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    container_port    = 1
   }
 
   assert {
-    condition     = var.cluster_log_retention_in_days == 1
-    error_message = "cluster_log_retention_in_days of 1 (minimum valid value) should be accepted."
+    condition     = kubernetes_service_v1.this.spec[0].port[0].target_port == "1"
+    error_message = "Minimum valid container_port (1) must be accepted; service target_port must be '1'"
   }
 }
 
-# Maximum valid cluster_log_retention_in_days
-run "test_maximum_log_retention" {
+# Scenario: "Validation Boundary - container_port = 65535 (maximum valid)"
+run "test_container_port_maximum_boundary" {
   command = plan
 
   variables {
-    cluster_name                  = "test"
-    kubernetes_version            = "1.32"
-    environment                   = "dev"
-    node_instance_types           = ["t3.medium"]
-    node_min_size                 = 1
-    node_max_size                 = 3
-    node_desired_size             = 2
-    cluster_log_retention_in_days = 3653
-  }
-
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test/cluster"
-    }
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    container_port    = 65535
   }
 
   assert {
-    condition     = var.cluster_log_retention_in_days == 3653
-    error_message = "cluster_log_retention_in_days of 3653 (maximum valid value) should be accepted."
+    condition     = kubernetes_service_v1.this.spec[0].port[0].target_port == "65535"
+    error_message = "Maximum valid container_port (65535) must be accepted; service target_port must be '65535'"
+  }
+}
+
+# Scenario: "Validation Boundary - registry_secret_revision = 1 (minimum valid)"
+run "test_registry_secret_revision_minimum_boundary" {
+  command = plan
+
+  variables {
+    app_name                 = "backend"
+    namespace                = "staging"
+    image                    = "de.icr.io/san-clients/backend:latest"
+    replicas                 = 1
+    registry_server          = "de.icr.io"
+    registry_username        = "iamapikey"
+    registry_password        = "key"
+    registry_secret_revision = 1
+  }
+
+  assert {
+    condition     = kubernetes_secret_v1.registry.data_wo_revision == 1
+    error_message = "Minimum valid registry_secret_revision (1) must be accepted; data_wo_revision must equal 1"
+  }
+}
+
+# Scenario: "Validation Boundary - liveness_path = '/' (single slash)"
+run "test_liveness_path_single_slash" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    liveness_path     = "/"
+  }
+
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe[0].http_get[0].path == "/"
+    error_message = "Single-slash liveness_path '/' must be accepted; probe path must be '/'"
+  }
+}
+
+# Scenario: "Validation Boundary - readiness_path = '/health' (standard path)"
+run "test_readiness_path_standard" {
+  command = plan
+
+  variables {
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    readiness_path    = "/health"
+  }
+
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe[0].http_get[0].path == "/health"
+    error_message = "Standard readiness_path '/health' must be accepted; probe path must be '/health'"
   }
 }

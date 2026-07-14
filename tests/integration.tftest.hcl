@@ -1,45 +1,37 @@
-# Generated from specs/001-eks-cluster-bob/design.md Section 5 — Integration: End-to-End
-# Requires real AWS credentials and creates real infrastructure (~20 min, incurs cost).
-# NOT run during this workflow.
-# Run with: TF_VAR_cluster_name=... terraform test -filter=tests/integration.tftest.hcl
+# integration — requires real cluster credentials, not run during this workflow
 
-# Scenario: "End-to-End Cluster Creation — verify EKS cluster, node group, and VPC are functional"
-# integration
-run "test_integration_end_to_end" {
-  command = apply
+# This file is a stub. Integration tests run against a real Kubernetes cluster
+# with command = apply (resources are created and destroyed). They require a
+# reachable sandbox cluster, valid credentials, and a pre-created namespace.
+#
+# Uncomment and populate the run block below when running integration tests locally
+# or in a pipeline that has cluster access and a sandbox namespace.
 
-  variables {
-    cluster_name        = "test-integration"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 2
-    node_desired_size   = 1
-  }
-
-  assert {
-    condition     = module.eks.cluster_endpoint != null && module.eks.cluster_endpoint != ""
-    error_message = "Cluster endpoint must be available after apply."
-  }
-
-  assert {
-    condition     = module.eks.cluster_arn != null
-    error_message = "Cluster ARN must be set after apply."
-  }
-
-  assert {
-    condition     = module.eks.worker_iam_role_arn != null
-    error_message = "Worker IAM role ARN must be set after apply."
-  }
-
-  assert {
-    condition     = output.vpc_id != null && output.vpc_id != ""
-    error_message = "VPC ID output must be populated after apply."
-  }
-
-  assert {
-    condition     = length(output.private_subnet_ids) >= 2
-    error_message = "At least 2 private subnets must be created."
-  }
-}
+# run "test_end_to_end" {
+#   command = apply
+#
+#   variables {
+#     app_name          = "backend-integration"
+#     namespace         = "integration-test"
+#     image             = "de.icr.io/san-clients/backend:latest"
+#     replicas          = 1
+#     registry_server   = "de.icr.io"
+#     registry_username = "iamapikey"
+#     registry_password = var.icr_api_key
+#   }
+#
+#   assert {
+#     condition     = kubernetes_secret_v1.registry.type == "kubernetes.io/dockerconfigjson"
+#     error_message = "Registry secret must have type 'kubernetes.io/dockerconfigjson' after apply"
+#   }
+#
+#   assert {
+#     condition     = kubernetes_deployment_v1.this.spec[0].replicas == "1"
+#     error_message = "Deployment replica count must equal '1' after apply"
+#   }
+#
+#   assert {
+#     condition     = kubernetes_service_v1.this.spec[0].cluster_ip != ""
+#     error_message = "Service ClusterIP must be assigned by the Kubernetes API after apply"
+#   }
+# }

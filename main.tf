@@ -1,52 +1,140 @@
-# EKS cluster — delegates to jose-merchan/eks-cluster/aws which composes
-# vpc/aws and eks/aws internally and avoids plan-time count issues.
-module "eks_cluster" {
-  source  = "app.terraform.io/jose-merchan/eks-cluster/aws"
-  version = "~> 0.0"
+# Registry pull secret — write-only credentials via data_wo
+resource "kubernetes_secret_v1" "registry" {
+  metadata {
+    name      = "${var.app_name}-registry-secret"
+    namespace = var.namespace
+    labels    = local.common_labels
+  }
 
-  # Mandatory tags
-  # eks-cluster/aws validates environment as dev/staging/prod — map sandbox→dev for internal use
-  environment = var.environment == "sandbox" ? "dev" : var.environment
-  owner       = lookup(var.tags, "Owner", "platform-team")
-  cost_center = lookup(var.tags, "CostCenter", "default")
-  project     = var.cluster_name
+  type = "kubernetes.io/dockerconfigjson"
 
-  # Cluster
-  cluster_name       = var.cluster_name
-  kubernetes_version = var.kubernetes_version
+  data_wo = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        (var.registry_server) = {
+          auth = base64encode("${var.registry_username}:${var.registry_password}")
+        }
+      }
+    })
+  }
 
-  # Endpoint access — public optional (Security Hub EKS.1)
-  endpoint_public_access       = var.cluster_endpoint_public_access
-  endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs
+  data_wo_revision = var.registry_secret_revision
 
-  # IRSA
-  enable_irsa = var.enable_irsa
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
-  # Control plane logging (Security Hub EKS.8)
-  log_retention_days = var.cluster_log_retention_in_days
+# Deployment
+resource "kubernetes_deployment_v1" "this" {
+  metadata {
+    name      = var.app_name
+    namespace = var.namespace
+    labels    = local.common_labels
+  }
 
-  # Node group
-  node_groups = {
-    default = {
-      instance_types = var.node_instance_types
-      capacity_type  = var.node_capacity_type
-      min_size       = var.node_min_size
-      max_size       = var.node_max_size
-      desired_size   = var.node_desired_size
-      disk_size_gb   = var.node_disk_size
+  spec {
+    replicas = tostring(var.replicas)
+
+    selector {
+      match_labels = local.pod_selector_labels
+    }
+
+    template {
+      metadata {
+        labels = local.common_labels
+      }
+
+      spec {
+        security_context {
+          run_as_non_root = true
+          run_as_user     = "1000"
+          fs_group        = "2000"
+        }
+
+        image_pull_secrets {
+          name = kubernetes_secret_v1.registry.metadata[0].name
+        }
+
+        container {
+          name  = var.app_name
+          image = var.image
+
+          port {
+            container_port = var.container_port
+          }
+
+          resources {
+            requests = {
+              cpu    = var.cpu_request
+              memory = var.memory_request
+            }
+            limits = {
+              cpu    = var.cpu_limit
+              memory = var.memory_limit
+            }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            privileged                 = false
+            read_only_root_filesystem  = true
+
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+
+          dynamic "liveness_probe" {
+            for_each = var.enable_liveness_probe ? [1] : []
+            content {
+              http_get {
+                path = var.liveness_path
+                port = tostring(var.container_port)
+              }
+            }
+          }
+
+          dynamic "readiness_probe" {
+            for_each = var.enable_readiness_probe ? [1] : []
+            content {
+              http_get {
+                path = var.readiness_path
+                port = tostring(var.container_port)
+              }
+            }
+          }
+        }
+      }
     }
   }
 
-  # VPC — create new when vpc_id not provided
-  vpc_id               = var.vpc_id
-  vpc_cidr             = var.vpc_cidr
-  availability_zones   = length(var.availability_zones) > 0 ? var.availability_zones : ["${data.aws_region.current.name}a", "${data.aws_region.current.name}b"]
-  private_subnet_cidrs = var.private_subnet_cidrs
-  public_subnet_cidrs  = var.public_subnet_cidrs
-  enable_internet_access = true
-  single_nat_gateway   = !var.one_nat_gateway_per_az
+  wait_for_rollout = false
 
-  additional_tags = local.merged_tags
+  lifecycle {
+    ignore_changes = [spec[0].template[0].metadata[0].annotations]
+  }
+
+  depends_on = [kubernetes_secret_v1.registry]
 }
 
-data "aws_region" "current" {}
+# Service
+resource "kubernetes_service_v1" "this" {
+  metadata {
+    name      = var.app_name
+    namespace = var.namespace
+    labels    = local.common_labels
+  }
+
+  spec {
+    type     = var.service_type
+    selector = local.pod_selector_labels
+
+    port {
+      port        = 80
+      target_port = tostring(var.container_port)
+    }
+  }
+
+  depends_on = [kubernetes_deployment_v1.this]
+}

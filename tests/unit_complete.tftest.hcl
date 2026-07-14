@@ -1,321 +1,119 @@
-# Generated from specs/001-eks-cluster-bob/design.md Section 5 -- Unit: Full Features
+# Generated from specs/006-kubernetes/design.md Section 5
 
-mock_provider "aws" {
-  mock_data "aws_availability_zones" {
-    defaults = {
-      names = ["us-east-1a", "us-east-1b"]
-    }
-  }
-}
-mock_provider "tls" {}
-mock_provider "time" {}
-mock_provider "null" {}
-mock_provider "cloudinit" {}
+mock_provider "kubernetes" {}
 
-# Scenario: "Full Features -- all modules created"
-run "test_all_modules_created_with_full_features" {
+# Scenario: "Full Features (complete)"
+run "test_full_features" {
   command = plan
 
   variables {
-    cluster_name                         = "test-complete"
-    kubernetes_version                   = "1.32"
-    environment                          = "prod"
-    node_instance_types                  = ["m5.large"]
-    node_min_size                        = 2
-    node_max_size                        = 10
-    node_desired_size                    = 4
-    cluster_endpoint_public_access       = true
-    cluster_endpoint_public_access_cidrs = ["10.0.0.0/8"]
-    kms_key_enabled                      = true
-    cluster_log_types                    = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
-    cluster_log_retention_in_days        = 365
-    enable_irsa                          = true
-    enable_vpc_flow_logs                 = true
-    one_nat_gateway_per_az               = true
-    authentication_mode                  = "API"
-    node_capacity_type                   = "ON_DEMAND"
-    node_disk_size                       = 50
-    tags                                 = { Owner = "platform-team", CostCenter = "eng" }
+    app_name                 = "api-gateway"
+    namespace                = "platform"
+    image                    = "de.icr.io/san-clients/api-gateway:v2.1.0"
+    replicas                 = 5
+    registry_server          = "de.icr.io"
+    registry_username        = "iamapikey"
+    registry_password        = "rotate-me"
+    registry_secret_revision = 2
+    container_port           = 9090
+    service_type             = "NodePort"
+    cpu_request              = "100m"
+    memory_request           = "128Mi"
+    cpu_limit                = "1000m"
+    memory_limit             = "1Gi"
+    liveness_path            = "/actuator/health/liveness"
+    readiness_path           = "/actuator/health/readiness"
+    enable_liveness_probe    = true
+    enable_readiness_probe   = true
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-complete"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-complete"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-complete/cluster"
-    }
-  }
-
+  # Custom replica count is coerced to string
   assert {
-    condition     = length(module.vpc) == 1
-    error_message = "VPC module must be created when vpc_id is not provided."
+    condition     = kubernetes_deployment_v1.this.spec[0].replicas == "5"
+    error_message = "Deployment replicas must be coerced to the string '5'"
   }
 
+  # Custom container port is applied
   assert {
-    condition     = module.eks.cluster_name != null
-    error_message = "EKS module must always be created."
-  }
-}
-
-# Scenario: "Full Features -- public endpoint enabled"
-run "test_public_endpoint_enabled" {
-  command = plan
-
-  variables {
-    cluster_name                         = "test-complete"
-    kubernetes_version                   = "1.32"
-    environment                          = "prod"
-    node_instance_types                  = ["m5.large"]
-    node_min_size                        = 2
-    node_max_size                        = 10
-    node_desired_size                    = 4
-    cluster_endpoint_public_access       = true
-    cluster_endpoint_public_access_cidrs = ["10.0.0.0/8"]
-    kms_key_enabled                      = true
-    cluster_log_retention_in_days        = 365
-    enable_vpc_flow_logs                 = true
-    one_nat_gateway_per_az               = true
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].port[0].container_port == 9090
+    error_message = "Container port must be set to 9090 when container_port = 9090"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-complete"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-complete"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-complete/cluster"
-    }
-  }
-
+  # Custom CPU request is applied
   assert {
-    condition     = var.cluster_endpoint_public_access == true
-    error_message = "Public endpoint must be enabled when cluster_endpoint_public_access = true."
-  }
-}
-
-# Scenario: "Full Features -- KMS explicitly enabled"
-run "test_kms_explicitly_enabled" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-complete"
-    kubernetes_version  = "1.32"
-    environment         = "prod"
-    node_instance_types = ["m5.large"]
-    node_min_size       = 2
-    node_max_size       = 10
-    node_desired_size   = 4
-    kms_key_enabled     = true
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].resources[0].requests["cpu"] == "100m"
+    error_message = "CPU request must equal '100m' when cpu_request = '100m'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-complete"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-complete"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-complete/cluster"
-    }
-  }
-
+  # Custom memory limit is applied
   assert {
-    condition     = var.kms_key_enabled == true
-    error_message = "KMS encryption must be enabled."
-  }
-}
-
-# Scenario: "Full Features -- custom log retention"
-run "test_custom_log_retention" {
-  command = plan
-
-  variables {
-    cluster_name                  = "test-complete"
-    kubernetes_version            = "1.32"
-    environment                   = "prod"
-    node_instance_types           = ["m5.large"]
-    node_min_size                 = 2
-    node_max_size                 = 10
-    node_desired_size             = 4
-    cluster_log_retention_in_days = 365
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].resources[0].limits["memory"] == "1Gi"
+    error_message = "Memory limit must equal '1Gi' when memory_limit = '1Gi'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-complete"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-complete"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-complete/cluster"
-    }
-  }
-
+  # Service type is NodePort
   assert {
-    condition     = var.cluster_log_retention_in_days == 365
-    error_message = "Log retention must be set to 365 days when specified."
-  }
-}
-
-# Scenario: "Full Features -- HA NAT enabled"
-run "test_ha_nat_enabled" {
-  command = plan
-
-  variables {
-    cluster_name           = "test-complete"
-    kubernetes_version     = "1.32"
-    environment            = "prod"
-    node_instance_types    = ["m5.large"]
-    node_min_size          = 2
-    node_max_size          = 10
-    node_desired_size      = 4
-    one_nat_gateway_per_az = true
+    condition     = kubernetes_service_v1.this.spec[0].type == "NodePort"
+    error_message = "Service type must be 'NodePort' when service_type = 'NodePort'"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-complete"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-complete"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-complete/cluster"
-    }
-  }
-
+  # Service target port matches custom container port
   assert {
-    condition     = var.one_nat_gateway_per_az == true
-    error_message = "HA NAT (one_nat_gateway_per_az) must be enabled when set to true."
-  }
-}
-
-# Scenario: "Full Features -- consumer tags are merged"
-run "test_consumer_tags_merged" {
-  command = plan
-
-  variables {
-    cluster_name        = "test-complete"
-    kubernetes_version  = "1.32"
-    environment         = "prod"
-    node_instance_types = ["m5.large"]
-    node_min_size       = 2
-    node_max_size       = 10
-    node_desired_size   = 4
-    tags                = { Owner = "platform-team", CostCenter = "eng" }
+    condition     = kubernetes_service_v1.this.spec[0].port[0].target_port == "9090"
+    error_message = "Service target_port must equal '9090' when container_port = 9090"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-complete"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-complete"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-complete/cluster"
-    }
-  }
-
+  # Custom liveness path
   assert {
-    condition     = local.merged_tags["Owner"] == "platform-team"
-    error_message = "Consumer tags must be present in merged_tags."
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe[0].http_get[0].path == "/actuator/health/liveness"
+    error_message = "Liveness probe path must equal '/actuator/health/liveness' when liveness_path = '/actuator/health/liveness'"
   }
 
+  # Custom readiness path
   assert {
-    condition     = local.merged_tags["ManagedBy"] == "terraform"
-    error_message = "Module default ManagedBy tag must always be present in merged_tags."
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe[0].http_get[0].path == "/actuator/health/readiness"
+    error_message = "Readiness probe path must equal '/actuator/health/readiness' when readiness_path = '/actuator/health/readiness'"
+  }
+
+  # Liveness probe targets custom port
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe[0].http_get[0].port == "9090"
+    error_message = "Liveness probe port must equal '9090' when container_port = 9090"
+  }
+
+  # Readiness probe targets custom port
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe[0].http_get[0].port == "9090"
+    error_message = "Readiness probe port must equal '9090' when container_port = 9090"
+  }
+
+  # Security controls still active at full features
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].security_context[0].run_as_non_root == true
+    error_message = "Pod security context must enforce run_as_non_root = true even with all features enabled"
+  }
+
+  # Capabilities still dropped
+  assert {
+    condition     = contains(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].capabilities[0].drop, "ALL")
+    error_message = "Container must still drop ALL Linux capabilities when all features are enabled"
+  }
+
+  # Read-only rootfs still enforced
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].read_only_root_filesystem == true
+    error_message = "Container read_only_root_filesystem must remain true even with all features enabled"
+  }
+
+  # Secret revision is applied
+  assert {
+    condition     = kubernetes_secret_v1.registry.data_wo_revision == 2
+    error_message = "Registry secret data_wo_revision must equal 2 when registry_secret_revision = 2"
+  }
+
+  # Deployment image matches
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].image == "de.icr.io/san-clients/api-gateway:v2.1.0"
+    error_message = "Container image must equal 'de.icr.io/san-clients/api-gateway:v2.1.0'"
   }
 }
