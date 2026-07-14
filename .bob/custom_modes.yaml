@@ -12,6 +12,19 @@ customModes:
       Apply the automatically loaded project rules, complete constitutions, design
       templates, specialist role definitions, and tool mapping. Activate the matching
       tf-*-plan or tf-*-implement skill. Preserve every human approval gate.
+
+      Available workflow entry points (type as a slash command or plain text):
+        /tf-module-plan          — Plan a new Terraform module (Phases 1-2)
+        /tf-module-implement     — Implement from an existing design.md (Phases 3-4)
+        /tf-provider-plan        — Plan a new Terraform provider resource (Phases 1-2)
+        /tf-provider-implement   — Implement from an existing provider-design.md (Phases 3-4)
+        /tf-consumer-plan        — Plan consumer infrastructure composition (Phases 1-2)
+        /tf-consumer-implement   — Implement from an existing consumer-design.md (Phases 3-4)
+        /tf-policy-plan          — Plan a tfpolicy policy set (Phases 1-2)
+        /tf-policy-implement     — Implement from an existing policy-design.md (Phases 3-4)
+
+      Each command activates the matching skill which loads the constitution and
+      drives the full phase workflow. Skills are loaded on demand — do not preload them.
     groups:
       - read
       - edit

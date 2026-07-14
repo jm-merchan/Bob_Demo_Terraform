@@ -29,6 +29,17 @@
 
 This repository is a **Terraform development template** using **SDD** (Spec-Driven Development, 4-phase workflow). It supports four workflows: **module authoring** (raw resources with secure defaults), **provider development** (Plugin Framework resources), **consumer provisioning** (composing infrastructure from private registry modules), and **policy development** (tfpolicy policy-as-code for HCP Terraform). All workflows share the same 4-phase structure: Clarify, Design, Implement, Validate.
 
+## Script-First Shell Execution
+
+When a task requires running shell commands (curl, mv, cp, cat, jq, git, terraform, etc.):
+
+1. **Always use the fixed script name `_run.sh`** — write all commands into `_run.sh` at the repo root using `write_file`. Never use any other name for ad-hoc task scripts. This allows the user to permanently allowlist `bash _run.sh` once and never be prompted again.
+2. **Execute once** — call `execute_command: bash _run.sh` as the single approval boundary. Do not chain unrelated commands across multiple `execute_command` calls.
+3. **One script per logical task** — group all commands that belong to the same operation into one `_run.sh`. Overwrite it for each new task. A "logical task" is a cohesive unit of work (e.g. "validate environment", "create feature branch", "run lint checks").
+4. **No secrets in scripts** — reference env vars by name (`"$TFE_TOKEN"`, `"$GITHUB_TOKEN"`), never interpolate their values into the script body.
+5. **Clean up** — remove `_run.sh` with `execute_command: rm _run.sh` after successful execution.
+6. **Exceptions** — single-command operations with no chaining or piping (e.g. `terraform fmt`, `git status`) may be run directly without wrapping in a script.
+
 ## Shell Safety
 
 Never generate shell commands containing dangerous bash parameter expansion patterns. These trigger Copilot CLI security warnings and can enable arbitrary code execution (CVE-2026-29783):
