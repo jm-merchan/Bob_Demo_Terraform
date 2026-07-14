@@ -2,7 +2,7 @@
 # VPC is auto-created by the module when vpc_id is not provided (vpc_id = null by default).
 module "eks_cluster" {
   source  = "app.terraform.io/jose-merchan/eks-bob/aws"
-  version = "~> 0.1"
+  version = "~> 0.5"
 
   # Required inputs
   cluster_name       = var.cluster_name
