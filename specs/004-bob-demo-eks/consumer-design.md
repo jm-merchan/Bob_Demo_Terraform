@@ -46,7 +46,8 @@ This deployment provisions a production-grade Amazon EKS cluster named `bob-demo
 - The provider version constraint must be pessimistic (`~> 5.0`) to prevent uncontrolled major upgrades.
 - The Terraform version floor must be `>= 1.7` in code; the workspace executor must be pinned to `~> 1.12.0`.
 - The module must be sourced exclusively from the private registry (`app.terraform.io/jose-merchan`) — no public registry modules or raw resource blocks.
-- The cluster API endpoint must not be exposed on the public internet (Security Hub EKS.1).
+- The cluster API endpoint MUST be reachable from the public internet to allow operator access (`kubectl`) from locations without private VPC connectivity. `[SECURITY OVERRIDE]` — see Section 4.
+- Public endpoint access MUST be restricted to a configurable list of CIDR blocks (`cluster_endpoint_public_access_cidrs`); the default restricts to `0.0.0.0/0` but operators SHOULD narrow this to known IPs in practice.
 - Node capacity type must be `ON_DEMAND` to eliminate Spot interruption risk in the sandbox environment.
 
 ---
@@ -63,9 +64,9 @@ This deployment provisions a production-grade Amazon EKS cluster named `bob-demo
 *Rationale*: Research finding `research-pmr-module.md` confirms `0.1.0` is the only published version and recommends `~> 0.1` as the safe pessimistic constraint that allows patch-level fixes while blocking `0.2.0` breaking changes. Constitution §4.3 requires `~>` constraints for all module versions.
 *Rejected*: `= 0.1.0` exact pin (too restrictive, blocks patch fixes); `>= 0.1` (permits future `0.2.0` breaking changes).
 
-**Private endpoint only, no public access**: Accept the module's default `cluster_endpoint_public_access = false` without override.
-*Rationale*: Research finding `research-pmr-module.md` identifies this as Security Hub EKS.1 compliance — the module ships this as a secure default and `endpoint_private_access = true` is hardcoded inside the module. Overriding to `true` would require a `[SECURITY OVERRIDE]` justification; none is needed for the sandbox cluster.
-*Rejected*: Enabling public access — would expose the API server to the internet and fail Security Hub EKS.1 without a documented exception.
+**Public endpoint enabled with CIDR restriction**: Override module default by setting `cluster_endpoint_public_access = true` and exposing `cluster_endpoint_public_access_cidrs` as a consumer variable. `[SECURITY OVERRIDE]` — justified by sandbox operator requirement: no private VPC connectivity from developer workstations; `kubectl` and CI/CD pipelines must reach the API server over the internet.
+*Rationale*: The `eks-bob` module exposes `cluster_endpoint_public_access` (default `false`) and `cluster_endpoint_public_access_cidrs` (default `["0.0.0.0/0"]`) as inputs. The private endpoint (`endpoint_private_access = true`) remains hardcoded in the module — node-to-control-plane traffic stays private. Only the public-facing API endpoint is opened.
+*Rejected*: Keeping the private-only default — would make the cluster unreachable from operator workstations without a VPN or bastion, which is not available in this sandbox environment.
 
 **Region override via `var.aws_region`**: Set the AWS provider `region` argument from `var.aws_region`, defaulting to `"eu-west-1"`, rather than relying solely on the global varset's `AWS_REGION` env variable.
 *Rationale*: Research finding `research-workspace.md` confirms the global `aws-dynamic-provider-credentials` varset sets `AWS_REGION = us-east-1`. Making the region explicit in the provider block (with a `eu-west-1` default in `variables.tf`) makes the intended region auditable in code review and removes a runtime dependency on workspace variable ordering. The workspace-level `AWS_REGION = eu-west-1` env override is an additional safety net.
@@ -111,13 +112,14 @@ Single-module topology — all consumer variables flow directly into `module.eks
 
 ```
 # Consumer inputs → module inputs
-var.cluster_name        ──→ module.eks_cluster.cluster_name
-var.kubernetes_version  ──→ module.eks_cluster.kubernetes_version
-var.environment         ──→ module.eks_cluster.environment
-var.node_instance_types ──→ module.eks_cluster.node_instance_types
-var.node_min_size       ──→ module.eks_cluster.node_min_size
-var.node_max_size       ──→ module.eks_cluster.node_max_size
-var.node_desired_size   ──→ module.eks_cluster.node_desired_size
+var.cluster_name                        ──→ module.eks_cluster.cluster_name
+var.kubernetes_version                  ──→ module.eks_cluster.kubernetes_version
+var.environment                         ──→ module.eks_cluster.environment
+var.node_instance_types                 ──→ module.eks_cluster.node_instance_types
+var.node_min_size                       ──→ module.eks_cluster.node_min_size
+var.node_max_size                       ──→ module.eks_cluster.node_max_size
+var.node_desired_size                   ──→ module.eks_cluster.node_desired_size
+var.cluster_endpoint_public_access_cidrs ──→ module.eks_cluster.cluster_endpoint_public_access_cidrs  # [SECURITY OVERRIDE]
 
 # Module outputs → consumer outputs
 module.eks_cluster.cluster_name                      ──→ output.cluster_name
@@ -194,6 +196,7 @@ This table is the SINGLE SOURCE OF TRUTH for the deployment's input interface.
 | `node_min_size` | `number` | No | `1` | Value must be >= 1 | No | Minimum number of nodes in the managed node group. |
 | `node_max_size` | `number` | No | `3` | Value must be >= 1 | No | Maximum number of nodes in the managed node group. |
 | `node_desired_size` | `number` | No | `2` | Value must be >= 1 | No | Desired node count at cluster creation time. |
+| `cluster_endpoint_public_access_cidrs` | `list(string)` | No | `["0.0.0.0/0"]` | -- | No | `[SECURITY OVERRIDE]` CIDR blocks allowed to reach the public EKS API endpoint. Default is open; operators SHOULD restrict to known IPs in non-sandbox environments. |
 
 ### Outputs
 
@@ -218,7 +221,7 @@ This table is the SINGLE SOURCE OF TRUTH for the deployment's input interface.
 |---------|-------------|---------------|-----------|
 | Encryption at rest | Module default honoured — `eks-bob` creates a customer-managed KMS CMK and configures it as the EKS secrets envelope encryption provider. Consumer does not override. | `module.eks_cluster`: `kms_key_enabled` defaults to `true` (Security Hub EKS.3) | AWS Security Hub [EKS.3]; CIS AWS Foundations Benchmark v1.4 §5.3.1 (encrypt Kubernetes secrets at rest) |
 | Encryption in transit | Module default honoured — EKS control-plane API server enforces TLS 1.2+ for all client-to-API and node-to-API communication; this is an AWS-managed control within the EKS service and cannot be disabled. | `module.eks_cluster`: no consumer override required; AWS-managed TLS enforcement | AWS Well-Architected Security Pillar SEC07-BP02 (protect data in transit); CIS AWS EKS Benchmark §4.4.1 |
-| Public access | Module default honoured — cluster API endpoint is private-only. Consumer does not set `cluster_endpoint_public_access`. `endpoint_private_access = true` is hardcoded inside the module and is not a consumer variable. | `module.eks_cluster`: `cluster_endpoint_public_access` defaults to `false` (Security Hub EKS.1) | AWS Security Hub [EKS.1]; CIS AWS EKS Benchmark §3.1.1 (disable public endpoint access) |
+| Public access | `[SECURITY OVERRIDE]` — public endpoint enabled for sandbox operator access from locations without private VPC connectivity. Private endpoint (`endpoint_private_access = true`) remains hardcoded active inside the module; node-to-control-plane traffic is unaffected. CIDRs restricted via `cluster_endpoint_public_access_cidrs` (default `0.0.0.0/0`; SHOULD be narrowed in practice). Accepted risk: sandbox environment only. | `module.eks_cluster`: `cluster_endpoint_public_access = true`, `cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs` | AWS Security Hub [EKS.1] — **overridden**; CIS AWS EKS Benchmark §3.1.1 — **exception documented** |
 | IAM least privilege | Dynamic credentials: HCP Terraform injects short-lived STS credentials via OIDC `AssumeRoleWithWebIdentity` using the role `arn:aws:iam::492487827579:role/hcp-terraform-dynamic-admin`. No static IAM keys exist in the deployment. IRSA OIDC provider created by the module enables pod-level least-privilege IAM roles without node-level credentials. | `module.eks_cluster`: `enable_irsa` defaults to `true`; provider uses HCP Terraform dynamic credentials (constitution §3.1) | AWS Well-Architected Security Pillar SEC02-BP02 (use temporary credentials); CIS AWS Foundations Benchmark v1.4 §1.15 (no active IAM access keys for root/users) |
 | Logging | Module default honoured — all five EKS control-plane log types (`api`, `audit`, `authenticator`, `controllerManager`, `scheduler`) are shipped to CloudWatch Logs with 90-day retention. Consumer does not override `cluster_log_types` or `cluster_log_retention_in_days`. | `module.eks_cluster`: `cluster_log_types` defaults to all 5 types; `cluster_log_retention_in_days` defaults to `90` (Security Hub EKS.8) | AWS Security Hub [EKS.8]; CIS AWS EKS Benchmark §2.1.1 (enable audit logging); AWS Well-Architected Security Pillar SEC04-BP01 (configure service and application logging) |
 | Tagging | Provider `default_tags` block applies `ManagedBy = "terraform"`, `Environment`, `Project`, `Owner` to all resources via the AWS provider. The module additionally applies `Name`, `Application`, and `ManagedBy` tags internally. Module `tags` input is not explicitly set by the consumer — `default_tags` propagation is sufficient for the sandbox environment. | `provider "aws"`: `default_tags` with `ManagedBy`, `Environment`, `Project`, `Owner` (constitution §3.3); `module.eks_cluster`: internal module tags merged at resource level | AWS Well-Architected Operational Excellence Pillar OPS11-BP07 (use tags to organize resources); CIS AWS Foundations Benchmark v1.4 §1.22 (ensure resource tagging) |
@@ -229,7 +232,7 @@ This table is the SINGLE SOURCE OF TRUTH for the deployment's input interface.
 
 - [ ] **A: Scaffold** — Create the 7-file root module structure: `versions.tf` (Terraform `>= 1.7`, `hashicorp/aws ~> 5.0`), `backend.tf` (`cloud {}` block with org `jose-merchan`, project `sandbox`, workspace `sandbox-bob-demo-eks`), `providers.tf` (AWS provider with `region = var.aws_region` and `default_tags`), `variables.tf` (all 10 variables from the Variables table in Section 3), `outputs.tf` (all 10 outputs from the Outputs table in Section 3), `locals.tf` (empty scaffold, no computed locals needed for single-module topology), and `terraform.auto.tfvars.example` (example values for all variables).
 
-- [ ] **B: Core module** — Populate `main.tf` with the single `module "eks_cluster"` block sourced from `app.terraform.io/jose-merchan/eks-bob/aws` at version `~> 0.1`. Wire all 7 required inputs (`cluster_name`, `kubernetes_version`, `environment`, `node_instance_types`, `node_min_size`, `node_max_size`, `node_desired_size`) from consumer variables per the Wiring Table in Section 3. Accept all security-relevant module defaults without override (`kms_key_enabled`, `cluster_log_types`, `cluster_endpoint_public_access`, `enable_irsa`).
+- [ ] **B: Core module** — Populate `main.tf` with the single `module "eks_cluster"` block sourced from `app.terraform.io/jose-merchan/eks-bob/aws` at version `~> 0.1`. Wire all 7 required inputs (`cluster_name`, `kubernetes_version`, `environment`, `node_instance_types`, `node_min_size`, `node_max_size`, `node_desired_size`) from consumer variables per the Wiring Table in Section 3. Apply security override: set `cluster_endpoint_public_access = true` and wire `cluster_endpoint_public_access_cidrs = var.cluster_endpoint_public_access_cidrs`. Accept all other security-relevant module defaults without override (`kms_key_enabled`, `cluster_log_types`, `enable_irsa`).
 
 - [ ] **C: Workspace creation** — Create workspace `sandbox-bob-demo-eks` in the `sandbox` project (`prj-cJR1vdDjwGbiHqzE`) of the `jose-merchan` HCP Terraform org with execution mode `remote`, Terraform version `~> 1.12.0`, `auto_apply = false`, and no VCS connection. Add workspace-level environment variable `AWS_REGION = eu-west-1` to override the global varset's `us-east-1` default. Confirm global varset `aws-dynamic-provider-credentials` is auto-applied (no explicit assignment step needed).
 
