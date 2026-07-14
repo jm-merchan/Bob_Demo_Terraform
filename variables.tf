@@ -1,226 +1,183 @@
-variable "cluster_name" {
+variable "app_name" {
   type        = string
-  description = "Name of the EKS cluster. Must be 1-100 characters, alphanumeric, hyphens, or underscores."
+  description = "Application name. Used as the base for all resource names, pod-selector labels, and the app.kubernetes.io/name label. Must be a valid RFC 1123 DNS label."
 
   validation {
-    condition     = length(var.cluster_name) >= 1 && length(var.cluster_name) <= 100
-    error_message = "cluster_name must be between 1 and 100 characters."
-  }
-
-  validation {
-    condition     = can(regex("^[a-zA-Z0-9_-]+$", var.cluster_name))
-    error_message = "cluster_name may only contain alphanumeric characters, hyphens, and underscores."
+    condition     = length(var.app_name) >= 1 && length(var.app_name) <= 63 && can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.app_name))
+    error_message = "app_name must be a valid RFC 1123 DNS label: lowercase alphanumeric and hyphens only, 1-63 characters, must start and end with alphanumeric."
   }
 }
 
-variable "kubernetes_version" {
+variable "namespace" {
   type        = string
-  description = "Kubernetes version for the EKS cluster control plane (e.g. \"1.32\"). Must be MAJOR.MINOR format."
+  description = "Target Kubernetes namespace. Must exist before apply. Must be a valid RFC 1123 DNS label (lowercase alphanumeric and hyphens, max 63 chars, start and end with alphanumeric)."
 
   validation {
-    condition     = can(regex("^[0-9]+\\.[0-9]+$", var.kubernetes_version))
-    error_message = "kubernetes_version must be in MAJOR.MINOR format (e.g. \"1.32\"). Do not include a 'v' prefix."
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.namespace))
+    error_message = "namespace must be a valid RFC 1123 DNS label: lowercase alphanumeric and hyphens only, max 63 characters, must start and end with alphanumeric."
   }
 }
 
-variable "environment" {
+variable "image" {
   type        = string
-  description = "Environment identifier applied to all resource tags (e.g. \"dev\", \"staging\", \"prod\", \"sandbox\")."
+  description = "Full OCI image reference including registry and tag (e.g., de.icr.io/san-clients/backend:latest). Must not be empty."
 
   validation {
-    condition     = contains(["dev", "staging", "prod", "sandbox"], var.environment)
-    error_message = "environment must be one of: dev, staging, prod, sandbox."
+    condition     = length(var.image) > 0
+    error_message = "image must not be empty. Provide a full OCI image reference including registry and tag."
   }
 }
 
-variable "node_instance_types" {
-  type        = list(string)
-  description = "List of EC2 instance types for the managed node group (e.g. [\"t3.medium\"])."
-
-  validation {
-    condition     = length(var.node_instance_types) >= 1
-    error_message = "node_instance_types must contain at least one instance type."
-  }
-}
-
-variable "node_min_size" {
+variable "replicas" {
   type        = number
-  description = "Minimum number of worker nodes in the managed node group."
+  description = "Number of pod replicas to run. Must be between 1 and 100 inclusive. Passed to the provider as a string via tostring()."
 
   validation {
-    condition     = var.node_min_size >= 1
-    error_message = "node_min_size must be at least 1."
+    condition     = var.replicas >= 1 && var.replicas <= 100
+    error_message = "Replica count must be between 1 and 100 inclusive."
   }
 }
 
-variable "node_max_size" {
-  type        = number
-  description = "Maximum number of worker nodes in the managed node group. Must be >= node_min_size."
-
-  validation {
-    condition     = var.node_max_size >= 1
-    error_message = "node_max_size must be at least 1."
-  }
-}
-
-variable "node_desired_size" {
-  type        = number
-  description = "Desired number of worker nodes at cluster creation. Must be between node_min_size and node_max_size."
-
-  validation {
-    condition     = var.node_desired_size >= 1
-    error_message = "node_desired_size must be at least 1."
-  }
-}
-
-# --- VPC inputs (optional) ---
-
-variable "vpc_id" {
+variable "registry_server" {
   type        = string
-  description = "ID of an existing VPC to use. When null or empty string, a new VPC is created automatically."
-  default     = null
+  sensitive   = true
+  description = "Hostname of the private container registry (e.g., de.icr.io). Used to construct the .dockerconfigjson auth payload."
+
+  validation {
+    condition     = length(var.registry_server) > 0
+    error_message = "registry_server must not be empty."
+  }
 }
 
-variable "private_subnet_ids" {
-  type        = list(string)
-  description = "IDs of existing private subnets for worker nodes. Required when vpc_id is provided; ignored when creating a new VPC."
-  default     = []
-}
-
-variable "public_subnet_ids" {
-  type        = list(string)
-  description = "IDs of existing public subnets for load balancer ENIs. Required when vpc_id is provided; ignored when creating a new VPC."
-  default     = []
-}
-
-variable "vpc_cidr" {
+variable "registry_username" {
   type        = string
-  description = "CIDR block for the new VPC. Only used when vpc_id is not provided."
-  default     = "10.0.0.0/16"
+  sensitive   = true
+  description = "Username for registry authentication (e.g., iamapikey for IBM ICR)."
 
   validation {
-    condition     = can(cidrnetmask(var.vpc_cidr))
-    error_message = "vpc_cidr must be a valid CIDR notation (e.g. \"10.0.0.0/16\")."
+    condition     = length(var.registry_username) > 0
+    error_message = "registry_username must not be empty."
   }
 }
 
-variable "availability_zones" {
-  type        = list(string)
-  description = "Availability zones for subnet creation. Auto-discovered from AWS when empty. Minimum two required by EKS."
-  default     = []
+variable "registry_password" {
+  type        = string
+  sensitive   = true
+  description = "Password or API key for registry authentication. Written via data_wo — never stored in state."
 
   validation {
-    condition     = length(var.availability_zones) == 0 || length(var.availability_zones) >= 2
-    error_message = "availability_zones must be empty (auto-discover) or contain at least 2 zones."
+    condition     = length(var.registry_password) > 0
+    error_message = "registry_password must not be empty."
   }
 }
 
-variable "public_subnet_cidrs" {
-  type        = list(string)
-  description = "CIDR blocks for public subnets, one per availability zone. Only used when creating a new VPC."
-  default     = ["10.0.101.0/24", "10.0.102.0/24"]
+variable "registry_secret_revision" {
+  type        = number
+  description = "Revision counter for the registry pull secret. Increment this value to trigger a credential rotation (replaces data_wo payload in-place)."
+  default     = 1
+
+  validation {
+    condition     = var.registry_secret_revision >= 1
+    error_message = "registry_secret_revision must be >= 1."
+  }
 }
 
-variable "private_subnet_cidrs" {
-  type        = list(string)
-  description = "CIDR blocks for private subnets, one per availability zone. /20 or larger recommended for node and pod IP allocation."
-  default     = ["10.0.1.0/24", "10.0.2.0/24"]
+variable "container_port" {
+  type        = number
+  description = "Container port the application listens on. Used for the pod port declaration and health probe HTTP GET target."
+  default     = 8080
+
+  validation {
+    condition     = var.container_port >= 1 && var.container_port <= 65535
+    error_message = "container_port must be between 1 and 65535 inclusive."
+  }
 }
 
-variable "one_nat_gateway_per_az" {
+variable "service_type" {
+  type        = string
+  description = "Kubernetes service type. Defaults to ClusterIP (no external exposure). Use LoadBalancer only with appropriate cloud annotations."
+  default     = "ClusterIP"
+
+  validation {
+    condition     = contains(["ClusterIP", "NodePort", "LoadBalancer"], var.service_type)
+    error_message = "service_type must be one of: ClusterIP, NodePort, LoadBalancer."
+  }
+}
+
+variable "cpu_request" {
+  type        = string
+  description = "CPU resource request per container pod. Kubernetes quantity string (e.g., \"250m\", \"0.25\")."
+  default     = "250m"
+
+  validation {
+    condition     = can(regex("^[0-9]+(m|[.][0-9]+)?$", var.cpu_request))
+    error_message = "cpu_request must be a valid Kubernetes CPU quantity string (e.g., \"250m\", \"0.25\")."
+  }
+}
+
+variable "memory_request" {
+  type        = string
+  description = "Memory resource request per container pod. Kubernetes quantity string (e.g., \"256Mi\", \"512M\")."
+  default     = "256Mi"
+
+  validation {
+    condition     = can(regex("^[0-9]+(Mi|Gi|M|G|Ki|K|Ti|T)?$", var.memory_request))
+    error_message = "memory_request must be a valid Kubernetes memory quantity string (e.g., \"256Mi\", \"1Gi\")."
+  }
+}
+
+variable "cpu_limit" {
+  type        = string
+  description = "CPU resource limit per container pod. Must be >= cpu_request. Kubernetes quantity string."
+  default     = "500m"
+
+  validation {
+    condition     = can(regex("^[0-9]+(m|[.][0-9]+)?$", var.cpu_limit))
+    error_message = "cpu_limit must be a valid Kubernetes CPU quantity string (e.g., \"500m\", \"1.0\")."
+  }
+}
+
+variable "memory_limit" {
+  type        = string
+  description = "Memory resource limit per container pod. Must be >= memory_request. Kubernetes quantity string."
+  default     = "512Mi"
+
+  validation {
+    condition     = can(regex("^[0-9]+(Mi|Gi|M|G|Ki|K|Ti|T)?$", var.memory_limit))
+    error_message = "memory_limit must be a valid Kubernetes memory quantity string (e.g., \"512Mi\", \"1Gi\")."
+  }
+}
+
+variable "liveness_path" {
+  type        = string
+  description = "HTTP GET path for the liveness probe. Must start with /. Liveness checks MUST NOT call external dependencies."
+  default     = "/health/live"
+
+  validation {
+    condition     = can(regex("^/", var.liveness_path))
+    error_message = "liveness_path must start with /."
+  }
+}
+
+variable "readiness_path" {
+  type        = string
+  description = "HTTP GET path for the readiness probe. Must start with /. May check upstream dependency health."
+  default     = "/health/ready"
+
+  validation {
+    condition     = can(regex("^/", var.readiness_path))
+    error_message = "readiness_path must start with /."
+  }
+}
+
+variable "enable_liveness_probe" {
   type        = bool
-  description = "When true, one NAT gateway is created per AZ (high availability). When false, a single shared NAT gateway is used (cost saving)."
-  default     = false
-}
-
-variable "enable_vpc_flow_logs" {
-  type        = bool
-  description = "Enable VPC Flow Logs for the created VPC. Recommended for production environments."
-  default     = false
-}
-
-# --- Security inputs ---
-
-variable "cluster_endpoint_public_access" {
-  type        = bool
-  description = "Whether the EKS API server endpoint is reachable from the public internet. Defaults to false (Security Hub EKS.1)."
-  default     = false
-}
-
-variable "cluster_endpoint_public_access_cidrs" {
-  type        = list(string)
-  description = "CIDR blocks allowed to reach the public endpoint. Only applies when cluster_endpoint_public_access = true. Should be restricted to known CIDRs in production."
-  default     = ["0.0.0.0/0"]
-}
-
-variable "kms_key_enabled" {
-  type        = bool
-  description = "Create and attach a customer-managed KMS key for Kubernetes secrets envelope encryption. Defaults to true (Security Hub EKS.3)."
+  description = "Enable or disable the container liveness probe. When false, the liveness probe block is omitted entirely."
   default     = true
 }
 
-variable "cluster_log_types" {
-  type        = list(string)
-  description = "Control plane log types to send to CloudWatch. Defaults to all five types (Security Hub EKS.8)."
-  default     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
-}
-
-variable "cluster_log_retention_in_days" {
-  type        = number
-  description = "CloudWatch log group retention in days. Must be a valid CloudWatch retention value."
-  default     = 90
-
-  validation {
-    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653], var.cluster_log_retention_in_days)
-    error_message = "cluster_log_retention_in_days must be a valid CloudWatch retention value: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, or 3653."
-  }
-}
-
-variable "enable_irsa" {
+variable "enable_readiness_probe" {
   type        = bool
-  description = "Enable the OIDC provider for IAM Roles for Service Accounts (IRSA). Defaults to true."
+  description = "Enable or disable the container readiness probe. When false, the readiness probe block is omitted entirely."
   default     = true
-}
-
-variable "authentication_mode" {
-  type        = string
-  description = "EKS cluster authentication mode. API_AND_CONFIG_MAP supports both EKS access entries and the legacy aws-auth ConfigMap."
-  default     = "API_AND_CONFIG_MAP"
-
-  validation {
-    condition     = contains(["CONFIG_MAP", "API", "API_AND_CONFIG_MAP"], var.authentication_mode)
-    error_message = "authentication_mode must be one of: CONFIG_MAP, API, API_AND_CONFIG_MAP."
-  }
-}
-
-# --- Node group inputs ---
-
-variable "node_capacity_type" {
-  type        = string
-  description = "Node group capacity type. ON_DEMAND provides consistent availability; SPOT reduces cost with interruption risk."
-  default     = "ON_DEMAND"
-
-  validation {
-    condition     = contains(["ON_DEMAND", "SPOT"], var.node_capacity_type)
-    error_message = "node_capacity_type must be one of: ON_DEMAND, SPOT."
-  }
-}
-
-variable "node_disk_size" {
-  type        = number
-  description = "EBS root volume size in GiB for worker nodes."
-  default     = 20
-
-  validation {
-    condition     = var.node_disk_size >= 20
-    error_message = "node_disk_size must be at least 20 GiB."
-  }
-}
-
-# --- Tagging ---
-
-variable "tags" {
-  type        = map(string)
-  description = "Additional tags merged onto all taggable resources. Consumer-provided tags take precedence over module defaults."
-  default     = {}
 }

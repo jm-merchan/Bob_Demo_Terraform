@@ -1,37 +1,32 @@
-# Generated from specs/001-eks-cluster-bob/design.md Section 5 — Acceptance: Plan Verification
-# Requires real AWS credentials. NOT run during this workflow.
-# Run with: TF_VAR_cluster_name=... terraform test -filter=tests/acceptance.tftest.hcl
+# acceptance — requires real cluster credentials, not run during this workflow
 
-# Scenario: "Plan Verification — resolve plan-unknown attributes with real AWS APIs"
-# acceptance
-run "test_acceptance_plan_verification" {
-  command = plan
+# This file is a stub. Acceptance tests run against a real Kubernetes API server
+# with command = plan (no resources created). They require a reachable cluster
+# and valid credentials wired through the consumer's provider configuration.
+#
+# Uncomment and populate the run block below when running acceptance tests locally
+# or in a pipeline that has cluster access.
 
-  variables {
-    cluster_name        = "test-acceptance"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-  }
-
-  # Cluster endpoint URL should be a non-empty string
-  assert {
-    condition     = module.eks.cluster_endpoint != null && module.eks.cluster_endpoint != ""
-    error_message = "cluster_endpoint must be a non-empty string from real AWS APIs."
-  }
-
-  # Cluster ARN should be non-empty
-  assert {
-    condition     = module.eks.cluster_arn != null && module.eks.cluster_arn != ""
-    error_message = "cluster_arn must be a non-empty ARN from real AWS APIs."
-  }
-
-  # OIDC issuer URL should be a non-empty https URL
-  assert {
-    condition     = module.eks.cluster_oidc_issuer_url != null && module.eks.cluster_oidc_issuer_url != ""
-    error_message = "cluster_oidc_issuer_url must be a non-empty URL from real AWS APIs."
-  }
-}
+# run "test_plan_verification" {
+#   command = plan
+#
+#   variables {
+#     app_name          = "backend-acceptance"
+#     namespace         = "acceptance-test"
+#     image             = "de.icr.io/san-clients/backend:latest"
+#     replicas          = 1
+#     registry_server   = "de.icr.io"
+#     registry_username = "iamapikey"
+#     registry_password = var.icr_api_key
+#   }
+#
+#   assert {
+#     condition     = kubernetes_secret_v1.registry.metadata[0].name != ""
+#     error_message = "Pull secret name must be set and deterministic after plan against real API"
+#   }
+#
+#   assert {
+#     condition     = kubernetes_service_v1.this.spec[0].cluster_ip != ""
+#     error_message = "Service ClusterIP must be assigned by the real Kubernetes API"
+#   }
+# }

@@ -1,11 +1,9 @@
 locals {
-  # Module default tags merged with consumer tags
-  default_tags = {
-    Name        = var.cluster_name
-    ManagedBy   = "terraform"
-    Environment = var.environment
-    Application = var.cluster_name
+  pod_selector_labels = {
+    "app.kubernetes.io/name" = var.app_name
   }
 
-  merged_tags = merge(local.default_tags, var.tags)
+  common_labels = merge(local.pod_selector_labels, {
+    "app.kubernetes.io/managed-by" = "terraform"
+  })
 }

@@ -1,70 +1,73 @@
-# Example: Complete EKS Cluster
+# Example: Complete — deploy backend with public LoadBalancer on EKS
 #
 # Demonstrates all available features:
-#   - Custom VPC CIDR and AZs
-#   - Public EKS endpoint restricted to an IP range
-#   - KMS customer-managed key for secrets encryption
-#   - All 5 control plane log types + 365-day retention
-#   - HA NAT Gateway (one per AZ)
-#   - IRSA (OIDC provider for pod IAM roles)
-#   - SPOT nodes with multiple instance types for cost optimisation
-#   - Custom tags for cost allocation
+#   - Public LoadBalancer service type (external access via AWS ELB)
+#   - Custom resource requests/limits
+#   - Configurable liveness and readiness probe paths
+#   - Credential rotation counter (registry_secret_revision)
+#   - All optional inputs explicitly set
+#
+# Target cluster: eks-infra-dev (eu-central-1)
+# Cluster details sourced from eks-infra-vcs HCP Terraform workspace outputs.
+# Registry credentials supplied via workspace variables or TF_VAR_* env vars.
+#
+# ⚠️  Security note: service_type = "LoadBalancer" provisions a public AWS ELB.
+#     Ensure appropriate Security Groups and Network Policies restrict access.
+#     Consider placing a WAF or Ingress with TLS in front for production traffic.
 
 terraform {
-  required_version = ">= 1.7"
+  required_version = ">= 1.14"
 
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 3.2.1"
     }
   }
 }
 
-provider "aws" {
-  region = var.aws_region
+# Kubernetes provider — authenticated against EKS using aws-cli exec plugin.
+# api_version MUST be "client.authentication.k8s.io/v1" (v1beta1 removed in EKS 1.32+).
+provider "kubernetes" {
+  host                   = var.cluster_endpoint
+  cluster_ca_certificate = base64decode(var.cluster_ca_cert)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", var.cluster_name, "--region", var.aws_region]
+  }
 }
 
-module "eks_cluster" {
-  source  = "app.terraform.io/jose-merchan/eks-cluster-bob/aws"
-  version = "0.0.1"
+# Deploy the backend application with a public LoadBalancer and custom resource sizing.
+module "backend" {
+  source = "../../"
 
-  cluster_name       = var.cluster_name
-  kubernetes_version = "1.32"
-  environment        = "prod"
+  # Identity
+  app_name  = var.app_name
+  namespace = var.namespace
+  image     = var.image
+  replicas  = var.replicas
 
-  # VPC configuration — create with HA NAT
-  vpc_cidr               = "10.100.0.0/16"
-  availability_zones     = ["us-east-1a", "us-east-1b", "us-east-1c"]
-  public_subnet_cidrs    = ["10.100.101.0/24", "10.100.102.0/24", "10.100.103.0/24"]
-  private_subnet_cidrs   = ["10.100.1.0/24", "10.100.2.0/24", "10.100.3.0/24"]
-  one_nat_gateway_per_az = true
-  enable_vpc_flow_logs   = true
+  # Network — expose publicly via AWS ELB (NLB provisioned by EKS cloud-controller-manager)
+  service_type   = "LoadBalancer"
+  container_port = var.container_port
 
-  # Security — public endpoint with CIDR restriction
-  cluster_endpoint_public_access       = true
-  cluster_endpoint_public_access_cidrs = ["10.0.0.0/8"]
-  kms_key_enabled                      = true
+  # Resource sizing — tune for production load
+  cpu_request    = var.cpu_request
+  memory_request = var.memory_request
+  cpu_limit      = var.cpu_limit
+  memory_limit   = var.memory_limit
 
-  # Logging — all types, 1-year retention
-  cluster_log_types             = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
-  cluster_log_retention_in_days = 365
+  # Health probes — app exposes /health/live and /health/ready
+  enable_liveness_probe  = true
+  enable_readiness_probe = true
+  liveness_path          = var.liveness_path
+  readiness_path         = var.readiness_path
 
-  # IRSA and authentication
-  enable_irsa         = true
-  authentication_mode = "API_AND_CONFIG_MAP"
-
-  # Node group — SPOT with mixed instance types; Cluster Autoscaler manages desired_size
-  node_instance_types = ["m5.large", "m5a.large", "m5d.large"]
-  node_capacity_type  = "SPOT"
-  node_min_size       = 2
-  node_max_size       = 10
-  node_desired_size   = 3
-  node_disk_size      = 50
-
-  tags = {
-    Owner      = "platform-team"
-    CostCenter = "engineering"
-    Env        = "prod"
-  }
+  # Registry credentials — sensitive; passed via tfvars or TF_VAR_* env vars
+  registry_server          = var.registry_server
+  registry_username        = var.registry_username
+  registry_password        = var.registry_password
+  registry_secret_revision = var.registry_secret_revision
 }

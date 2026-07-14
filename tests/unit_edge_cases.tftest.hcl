@@ -1,267 +1,175 @@
-# Generated from specs/001-eks-cluster-bob/design.md Section 5 -- Unit: Edge Cases
+# Generated from specs/006-kubernetes/design.md Section 5
 
-mock_provider "aws" {
-  mock_data "aws_availability_zones" {
-    defaults = {
-      names = ["us-east-1a", "us-east-1b"]
-    }
-  }
-}
-mock_provider "tls" {}
-mock_provider "time" {}
-mock_provider "null" {}
-mock_provider "cloudinit" {}
+mock_provider "kubernetes" {}
 
-# Sub-scenario: "BYO-VPC suppresses VPC module"
-run "test_byovpc_suppresses_vpc_module" {
+# Scenario: "Feature Interactions - Sub-scenario A: Liveness probe disabled, readiness probe enabled"
+run "test_liveness_disabled_readiness_enabled" {
   command = plan
 
   variables {
-    cluster_name        = "test-byovpc"
-    kubernetes_version  = "1.32"
-    environment         = "staging"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    vpc_id              = "vpc-0123456789abcdef0"
-    private_subnet_ids  = ["subnet-aaa", "subnet-bbb"]
-    public_subnet_ids   = ["subnet-ccc", "subnet-ddd"]
+    app_name               = "backend"
+    namespace              = "staging"
+    image                  = "de.icr.io/san-clients/backend:latest"
+    replicas               = 1
+    registry_server        = "de.icr.io"
+    registry_username      = "iamapikey"
+    registry_password      = "key"
+    enable_liveness_probe  = false
+    enable_readiness_probe = true
   }
 
-  # vpc_id is provided → module.vpc[0] does not exist (count=0); do not override it
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-byovpc"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-byovpc"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-byovpc/cluster"
-    }
-  }
-
+  # Liveness probe block is absent
   assert {
-    condition     = length(module.vpc) == 0
-    error_message = "VPC module must NOT be created when vpc_id is provided."
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe) == 0
+    error_message = "Liveness probe block must be absent when enable_liveness_probe = false"
   }
 
+  # Readiness probe block is present
   assert {
-    condition     = module.eks.cluster_name != null
-    error_message = "EKS module must still be created when using an existing VPC."
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe) == 1
+    error_message = "Readiness probe block must be present when enable_readiness_probe = true"
+  }
+
+  # Readiness probe uses default path
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe[0].http_get[0].path == "/health/ready"
+    error_message = "Readiness probe path must default to '/health/ready'"
   }
 }
 
-# Sub-scenario: "BYO-VPC uses provided subnet IDs"
-run "test_byovpc_uses_provided_subnets" {
+# Scenario: "Feature Interactions - Sub-scenario B: Readiness probe disabled, liveness probe enabled"
+run "test_readiness_disabled_liveness_enabled" {
   command = plan
 
   variables {
-    cluster_name        = "test-byovpc-subnets"
-    kubernetes_version  = "1.32"
-    environment         = "staging"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    vpc_id              = "vpc-0123456789abcdef0"
-    private_subnet_ids  = ["subnet-aaa", "subnet-bbb"]
-    public_subnet_ids   = ["subnet-ccc", "subnet-ddd"]
+    app_name               = "backend"
+    namespace              = "staging"
+    image                  = "de.icr.io/san-clients/backend:latest"
+    replicas               = 1
+    registry_server        = "de.icr.io"
+    registry_username      = "iamapikey"
+    registry_password      = "key"
+    enable_liveness_probe  = true
+    enable_readiness_probe = false
   }
 
-  # vpc_id is provided → module.vpc[0] does not exist (count=0); do not override it
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-byovpc-subnets"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-byovpc-subnets"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-byovpc-subnets/cluster"
-    }
-  }
-
+  # Readiness probe block is absent
   assert {
-    condition     = local.create_vpc == false
-    error_message = "create_vpc local must be false when vpc_id is provided."
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe) == 0
+    error_message = "Readiness probe block must be absent when enable_readiness_probe = false"
   }
 
+  # Liveness probe block is present
   assert {
-    condition     = local.vpc_id == "vpc-0123456789abcdef0"
-    error_message = "local.vpc_id must equal the provided vpc_id."
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe) == 1
+    error_message = "Liveness probe block must be present when enable_liveness_probe = true"
   }
 
+  # Liveness probe uses default path
   assert {
-    condition     = length(local.private_subnet_ids) == 2
-    error_message = "local.private_subnet_ids must use the provided private_subnet_ids."
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe[0].http_get[0].path == "/health/live"
+    error_message = "Liveness probe path must default to '/health/live'"
   }
 }
 
-# Sub-scenario: "KMS disabled -- EKS module still created"
-run "test_kms_disabled_eks_still_created" {
+# Scenario: "Feature Interactions - Sub-scenario C: Both probes disabled"
+run "test_both_probes_disabled" {
   command = plan
 
   variables {
-    cluster_name        = "test-nokms"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium"]
-    node_min_size       = 1
-    node_max_size       = 3
-    node_desired_size   = 2
-    kms_key_enabled     = false
+    app_name               = "backend"
+    namespace              = "staging"
+    image                  = "de.icr.io/san-clients/backend:latest"
+    replicas               = 1
+    registry_server        = "de.icr.io"
+    registry_username      = "iamapikey"
+    registry_password      = "key"
+    enable_liveness_probe  = false
+    enable_readiness_probe = false
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-nokms"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-nokms"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-nokms/cluster"
-    }
-  }
-
+  # Liveness probe block is absent
   assert {
-    condition     = module.eks.cluster_name != null
-    error_message = "EKS module must still be created when KMS is disabled."
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].liveness_probe) == 0
+    error_message = "Liveness probe block must be absent when enable_liveness_probe = false"
   }
 
+  # Readiness probe block is absent
   assert {
-    condition     = var.kms_key_enabled == false
-    error_message = "kms_key_enabled must be false when explicitly set to false."
+    condition     = length(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].readiness_probe) == 0
+    error_message = "Readiness probe block must be absent when enable_readiness_probe = false"
+  }
+
+  # Security context is unaffected by disabling probes
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].security_context[0].run_as_non_root == true
+    error_message = "Pod security context run_as_non_root must remain true when both probes are disabled"
   }
 }
 
-# Sub-scenario: "Public endpoint with CIDR restriction"
-run "test_public_endpoint_with_cidr_restriction" {
+# Scenario: "Feature Interactions - Sub-scenario D: LoadBalancer service type does not weaken security context"
+run "test_loadbalancer_does_not_weaken_security" {
   command = plan
 
   variables {
-    cluster_name                         = "test-pubcidr"
-    kubernetes_version                   = "1.32"
-    environment                          = "dev"
-    node_instance_types                  = ["t3.medium"]
-    node_min_size                        = 1
-    node_max_size                        = 3
-    node_desired_size                    = 2
-    cluster_endpoint_public_access       = true
-    cluster_endpoint_public_access_cidrs = ["192.168.1.0/24"]
+    app_name          = "backend"
+    namespace         = "staging"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 2
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
+    service_type      = "LoadBalancer"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-pubcidr"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-pubcidr"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-pubcidr/cluster"
-    }
-  }
-
+  # Service type is LoadBalancer
   assert {
-    condition     = var.cluster_endpoint_public_access == true
-    error_message = "cluster_endpoint_public_access must be true when set."
+    condition     = kubernetes_service_v1.this.spec[0].type == "LoadBalancer"
+    error_message = "Service type must be 'LoadBalancer' when service_type = 'LoadBalancer'"
   }
 
+  # Pod non-root enforcement unchanged
   assert {
-    condition     = var.cluster_endpoint_public_access_cidrs == tolist(["192.168.1.0/24"])
-    error_message = "cluster_endpoint_public_access_cidrs must match the provided value."
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].security_context[0].run_as_non_root == true
+    error_message = "Pod security context run_as_non_root must remain true when service_type = 'LoadBalancer'"
+  }
+
+  # Capabilities still dropped
+  assert {
+    condition     = contains(kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].capabilities[0].drop, "ALL")
+    error_message = "Container must still drop ALL Linux capabilities when service_type = 'LoadBalancer'"
+  }
+
+  # Privilege escalation still blocked
+  assert {
+    condition     = kubernetes_deployment_v1.this.spec[0].template[0].spec[0].container[0].security_context[0].allow_privilege_escalation == false
+    error_message = "allow_privilege_escalation must remain false when service_type = 'LoadBalancer'"
   }
 }
 
-# Sub-scenario: "SPOT capacity type with multiple instance types"
-run "test_spot_capacity_multiple_instance_types" {
+# Scenario: "Feature Interactions - Sub-scenario E: Minimum viable replica count (1)"
+run "test_minimum_viable_replica_count" {
   command = plan
 
   variables {
-    cluster_name        = "test-spot"
-    kubernetes_version  = "1.32"
-    environment         = "dev"
-    node_instance_types = ["t3.medium", "t3.large"]
-    node_min_size       = 1
-    node_max_size       = 5
-    node_desired_size   = 2
-    node_capacity_type  = "SPOT"
+    app_name          = "backend"
+    namespace         = "test"
+    image             = "de.icr.io/san-clients/backend:latest"
+    replicas          = 1
+    registry_server   = "de.icr.io"
+    registry_username = "iamapikey"
+    registry_password = "key"
   }
 
-  override_module {
-    target = module.vpc[0]
-    outputs = {
-      vpc_id          = "vpc-stubbed"
-      public_subnets  = ["subnet-pub1", "subnet-pub2"]
-      private_subnets = ["subnet-priv1", "subnet-priv2"]
-    }
-  }
-
-  override_module {
-    target = module.eks
-    outputs = {
-      cluster_name                       = "test-spot"
-      cluster_endpoint                   = "https://stubbed.eks.endpoint"
-      cluster_arn                        = "arn:aws:eks:us-east-1:123456789012:cluster/test-spot"
-      cluster_certificate_authority_data = "c3R1YmJlZA=="
-      cluster_oidc_issuer_url            = "https://oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      oidc_provider_arn                  = "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/stubbed"
-      cluster_security_group_id          = "sg-stubbed"
-      node_security_group_id             = "sg-node-stubbed"
-      cluster_iam_role_arn               = "arn:aws:iam::123456789012:role/stubbed-cluster-role"
-      node_iam_role_arn                  = "arn:aws:iam::123456789012:role/stubbed-node-role"
-      cloudwatch_log_group_name          = "/aws/eks/test-spot/cluster"
-    }
-  }
-
+  # Replica count is 1 as string
   assert {
-    condition     = var.node_capacity_type == "SPOT"
-    error_message = "node_capacity_type must be SPOT when set."
+    condition     = kubernetes_deployment_v1.this.spec[0].replicas == "1"
+    error_message = "Deployment replicas must equal '1' when replicas = 1"
   }
 
+  # Service selector label matches app name
   assert {
-    condition     = length(var.node_instance_types) == 2
-    error_message = "node_instance_types must support multiple instance types for SPOT."
+    condition     = kubernetes_service_v1.this.spec[0].selector["app.kubernetes.io/name"] == "backend"
+    error_message = "Service selector must include app.kubernetes.io/name == 'backend'"
   }
 }

@@ -1,14 +1,14 @@
-output "cluster_name" {
-  description = "Name of the deployed EKS cluster."
-  value       = module.eks_cluster.cluster_name
+output "deployment_name" {
+  description = "Name of the Kubernetes Deployment resource."
+  value       = module.backend.deployment_name
 }
 
-output "cluster_endpoint" {
-  description = "URL of the EKS API server endpoint."
-  value       = module.eks_cluster.cluster_endpoint
+output "service_name" {
+  description = "Name of the Kubernetes Service resource."
+  value       = module.backend.service_name
 }
 
-output "vpc_id" {
-  description = "ID of the VPC created for the cluster."
-  value       = module.eks_cluster.vpc_id
+output "secret_name" {
+  description = "Name of the image pull secret."
+  value       = module.backend.secret_name
 }
