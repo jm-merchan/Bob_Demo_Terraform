@@ -1,0 +1,14 @@
+# Example values for all consumer variables — copy to terraform.auto.tfvars and adjust as needed.
+# Do NOT commit terraform.auto.tfvars to version control if it contains sensitive values.
+
+cluster_name                         = "bob-demo"
+kubernetes_version                   = "1.32"
+environment                          = "sandbox"
+aws_region                           = "eu-west-1"
+project_name                         = "bob-demo-eks"
+owner                                = "platform-team"
+node_instance_types                  = ["t3.medium"]
+node_min_size                        = 1
+node_max_size                        = 3
+node_desired_size                    = 2
+cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"] # [SECURITY OVERRIDE] — restrict to known IPs in non-sandbox environments
