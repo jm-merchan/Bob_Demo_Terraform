@@ -53,7 +53,7 @@ This deployment provisions the `backend` application workload into an existing A
 
 ### Architectural Decisions
 
-**Primary module — `kubernetes-app-deploy`**: The `app.terraform.io/jose-merchan/kubernetes-app-deploy/kubernetes` private registry module is the sole infrastructure module in this composition.
+**Primary module — `kubernetes-app-deploy`**: The `app.terraform.io/jose-merchan/app-deploy/kubernetes` private registry module is the sole infrastructure module in this composition.
 *Rationale*: Research finding Q1 (research-module-registry.md) confirms this is the only Kubernetes-provider module scoped for application deployment in the `jose-merchan` PMR. It encapsulates the pull secret (`data_wo`), Deployment, and Service as a single versioned unit, eliminating the need for raw resource authoring in the consumer. The constitution §1.1 prohibits raw infrastructure resources — the module is the correct abstraction.
 *Rejected*: Writing raw `kubernetes_deployment_v1`, `kubernetes_service_v1`, `kubernetes_secret_v1` resources in the consumer — constitution §1.1 prohibits this; the module exists precisely to prevent it.
 
@@ -77,7 +77,7 @@ This deployment provisions the `backend` application workload into an existing A
 
 | Module | Registry Source | Version | Purpose | Conditional | Key Inputs | Key Outputs |
 |--------|----------------|---------|---------|-------------|------------|-------------|
-| `app_deploy` | `app.terraform.io/jose-merchan/kubernetes-app-deploy/kubernetes` | `~> 0.1` | Deploys pull secret, Deployment (2 replicas), and LoadBalancer Service for the backend app | always | `app_name`, `namespace`, `image`, `replicas`, `service_type`, `registry_server`, `registry_username`, `registry_password` | `deployment_name`, `service_name`, `service_cluster_ip`, `secret_name` |
+| `app_deploy` | `app.terraform.io/jose-merchan/app-deploy/kubernetes` | `~> 0.1` | Deploys pull secret, Deployment (2 replicas), and LoadBalancer Service for the backend app | always | `app_name`, `namespace`, `image`, `replicas`, `service_type`, `registry_server`, `registry_username`, `registry_password` | `deployment_name`, `service_name`, `service_cluster_ip`, `secret_name` |
 
 ### Glue Resources
 
@@ -251,7 +251,7 @@ provider "kubernetes" {
 
 - [ ] **B: Data sources and provider config** — Populate `data.tf` with `data "terraform_remote_state" "eks_infra"` (backend = "remote", org `jose-merchan`, workspace = `var.infra_workspace`). Populate `providers.tf` with `provider "aws"` (region = `var.aws_region`, `default_tags` block) and `provider "kubernetes"` (host = `local.cluster_endpoint`, `cluster_ca_certificate` = `local.cluster_ca_certificate`, `exec` block with `api_version = "client.authentication.k8s.io/v1"`, command `aws`, args `eks get-token --cluster-name --region`).
 
-- [ ] **C: Glue resource and module call** — Populate `main.tf` with: (1) `kubernetes_namespace.app` glue resource with `[CONSTITUTION DEVIATION]` comment, metadata name = `var.namespace`, labels including `app.kubernetes.io/managed-by = "terraform"` and `environment`; (2) `module "app_deploy"` sourced from `app.terraform.io/jose-merchan/kubernetes-app-deploy/kubernetes ~> 0.1` with all required inputs wired per §3 Wiring Table, `namespace = kubernetes_namespace.app.metadata[0].name` for implicit dependency, `service_type = "LoadBalancer"` with `[SECURITY OVERRIDE]` comment.
+- [ ] **C: Glue resource and module call** — Populate `main.tf` with: (1) `kubernetes_namespace.app` glue resource with `[CONSTITUTION DEVIATION]` comment, metadata name = `var.namespace`, labels including `app.kubernetes.io/managed-by = "terraform"` and `environment`; (2) `module "app_deploy"` sourced from `app.terraform.io/jose-merchan/app-deploy/kubernetes ~> 0.1` with all required inputs wired per §3 Wiring Table, `namespace = kubernetes_namespace.app.metadata[0].name` for implicit dependency, `service_type = "LoadBalancer"` with `[SECURITY OVERRIDE]` comment.
 
 - [ ] **D: Workspace provisioning** — Create the `k8s-app-demo-bob` workspace in org `jose-merchan`, project `Default Project` (`prj-PmbVsprg8DoogHW7`), execution mode `remote`, Terraform version `~> 1.15.0`, auto-apply `true`. Set the four workspace variables (`registry_password` sensitive, `registry_username`, `registry_server`, `infra_workspace`). **Gate**: POST new workspace ID to `eks-infra-vcs` (`ws-fynCV5VvhkpRF7s3`) remote-state-consumers before triggering any plan run.
 
@@ -261,18 +261,15 @@ provider "kubernetes" {
 
 ## 6. Open Questions
 
-**[DEFERRED] PMR publication prerequisite — `kubernetes-app-deploy` module not yet published**
+**[RESOLVED] PMR publication prerequisite — `app-deploy/kubernetes` module published ✅**
 
-The module `app.terraform.io/jose-merchan/kubernetes-app-deploy/kubernetes` does NOT yet exist in the `jose-merchan` private registry. A live PMR API query (2025-07-14) returned 16 modules — all `aws` or `google` provider — and a direct HTTP GET of the module path returned HTTP 404 (research-module-registry.md §PMR Status: Confirmed NOT Published).
+The module `app.terraform.io/jose-merchan/app-deploy/kubernetes` is **live in the PMR** (`status: setup_complete`, `version: 0.1.0 / ok`).
 
-`terraform init` in the `k8s-app-demo-bob` workspace will fail until the module is published at `v0.1.0` or later.
+- GitHub repo: [`jm-merchan/terraform-kubernetes-app-deploy`](https://github.com/jm-merchan/terraform-kubernetes-app-deploy)
+- PMR source: `app.terraform.io/jose-merchan/app-deploy/kubernetes ~> 0.1`
+- Tag `v0.1.0` pushed and ingested by HCP Terraform (confirmed 2025-07-15)
 
-**Required steps before Build phase can begin:**
-1. Register module `kubernetes-app-deploy` (provider: `kubernetes`) in the `jose-merchan` HCP Terraform org via UI or API, linked to the GitHub repo containing `terraform-kubernetes-app-deploy`.
-2. Push a semver tag `v0.1.0` to the linked repository — HCP Terraform ingests the tag and marks the version `status: ok`.
-3. Verify: `GET /api/v2/organizations/jose-merchan/registry-modules/private/jose-merchan/kubernetes-app-deploy/kubernetes` must return HTTP 200 with `version-statuses[0].version = "0.1.0"`.
-
-This is a **Design → Build gate**: the module MUST be published and verifiable before any implementation proceeds.
+`terraform init` in the `k8s-app-demo-bob` workspace will resolve the module source successfully. This gate is **cleared**.
 
 ---
 
@@ -292,14 +289,11 @@ Constitution §1.1 enumerates permitted glue resources as: `random_id`, `random_
 
 ---
 
-**[DEFERRED] Remote state consumer registration — manual post-deployment step**
+**[RESOLVED] Remote state consumer registration — completed ✅**
 
-`eks-infra-vcs` has `global-remote-state = false` and `project-remote-state = false`. The new workspace lives in a different project (`Default Project` / `prj-PmbVsprg8DoogHW7`) than `eks-infra-vcs` (`sandbox` / `prj-cJR1vdDjwGbiHqzE`), so project-scoped sharing would not help even if enabled.
+`k8s-app-demo-bob` (`ws-g5V4jbf1EyPrcy1P`) has been added as a remote state consumer of `eks-infra-vcs` (`ws-fynCV5VvhkpRF7s3`). Verified live — `eks-infra-vcs` now has 3 consumers:
+- `ws-L4DyVVdn2YBUzipb` (eks-app-vcs)
+- `ws-3MgtdSUWuLy9ktnL` (eks-vault-vcs)
+- `ws-g5V4jbf1EyPrcy1P` (k8s-app-demo-bob) ← **new**
 
-The workspace ID for `k8s-app-demo-bob` is not known until after workspace creation (Implementation Checklist item D). The remote-state-consumer POST cannot be scripted in advance. This is a **sequenced operational gate** that must be performed manually (or via a post-creation automation script) before triggering the first plan run.
-
-API call to execute once workspace ID is known:
-```
-POST https://app.terraform.io/api/v2/workspaces/ws-fynCV5VvhkpRF7s3/relationships/remote-state-consumers
-Body: { "data": [{ "id": "<NEW_WS_ID>", "type": "workspaces" }] }
-```
+This gate is **cleared**. Implementation can proceed directly.
