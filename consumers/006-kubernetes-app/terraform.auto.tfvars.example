@@ -1,0 +1,19 @@
+# Example variable values for consumers/006-kubernetes-app
+# Copy to terraform.auto.tfvars and populate before running locally.
+# Registry credentials MUST be set as sensitive workspace variables in HCP Terraform —
+# never commit credentials to this file.
+
+aws_region      = "eu-central-1"
+project_name    = "k8s-app-demo"
+environment     = "sandbox"
+owner           = "platform-team"
+infra_workspace = "eks-infra-vcs"
+namespace       = "bob-demo-app"
+app_name        = "backend"
+image           = "de.icr.io/san-clients/backend:latest"
+replicas        = 2
+
+# Set these as SENSITIVE workspace variables in HCP Terraform UI — do NOT put real values here:
+# registry_server   = "de.icr.io"
+# registry_username = "iamapikey"
+# registry_password = "<your-icr-api-key>"

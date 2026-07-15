@@ -85,6 +85,26 @@ resource "kubernetes_deployment_v1" "this" {
             }
           }
 
+          # emptyDir volume mount for /tmp — required when read_only_root_filesystem = true.
+          # The app writes temporary files to /tmp; the read-only rootfs blocks all other writes.
+          volume_mount {
+            name       = "tmp"
+            mount_path = "/tmp"
+          }
+
+          dynamic "startup_probe" {
+            for_each = var.enable_startup_probe ? [1] : []
+            content {
+              http_get {
+                path = var.startup_path
+                port = tostring(var.container_port)
+              }
+              period_seconds    = var.startup_period_seconds
+              timeout_seconds   = var.startup_timeout_seconds
+              failure_threshold = var.startup_failure_threshold
+            }
+          }
+
           dynamic "liveness_probe" {
             for_each = var.enable_liveness_probe ? [1] : []
             content {
@@ -92,6 +112,9 @@ resource "kubernetes_deployment_v1" "this" {
                 path = var.liveness_path
                 port = tostring(var.container_port)
               }
+              period_seconds    = var.liveness_period_seconds
+              timeout_seconds   = var.liveness_timeout_seconds
+              failure_threshold = var.liveness_failure_threshold
             }
           }
 
@@ -102,8 +125,19 @@ resource "kubernetes_deployment_v1" "this" {
                 path = var.readiness_path
                 port = tostring(var.container_port)
               }
+              period_seconds    = var.readiness_period_seconds
+              timeout_seconds   = var.readiness_timeout_seconds
+              failure_threshold = var.readiness_failure_threshold
             }
           }
+        }
+
+        # emptyDir volume backing the /tmp mount above.
+        # emptyDir is ephemeral (cleared on pod restart) and lives entirely in memory
+        # by default, which is acceptable for temporary files.
+        volume {
+          name = "tmp"
+          empty_dir {}
         }
       }
     }
@@ -121,9 +155,10 @@ resource "kubernetes_deployment_v1" "this" {
 # Service
 resource "kubernetes_service_v1" "this" {
   metadata {
-    name      = var.app_name
-    namespace = var.namespace
-    labels    = local.common_labels
+    name        = var.app_name
+    namespace   = var.namespace
+    labels      = local.common_labels
+    annotations = var.service_annotations
   }
 
   spec {
