@@ -24,7 +24,7 @@ resource "kubernetes_namespace_v1" "app" {
 # the pull secret, deployment, and service inside it.
 module "app_deploy" {
   source  = "app.terraform.io/jose-merchan/app-deploy/kubernetes"
-  version = "~> 0.2"
+  version = "~> 0.3"
 
   app_name  = var.app_name
   namespace = kubernetes_namespace_v1.app.metadata[0].name

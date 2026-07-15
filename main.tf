@@ -85,6 +85,13 @@ resource "kubernetes_deployment_v1" "this" {
             }
           }
 
+          # emptyDir volume mount for /tmp — required when read_only_root_filesystem = true.
+          # The app writes temporary files to /tmp; the read-only rootfs blocks all other writes.
+          volume_mount {
+            name       = "tmp"
+            mount_path = "/tmp"
+          }
+
           dynamic "liveness_probe" {
             for_each = var.enable_liveness_probe ? [1] : []
             content {
@@ -104,6 +111,14 @@ resource "kubernetes_deployment_v1" "this" {
               }
             }
           }
+        }
+
+        # emptyDir volume backing the /tmp mount above.
+        # emptyDir is ephemeral (cleared on pod restart) and lives entirely in memory
+        # by default, which is acceptable for temporary files.
+        volume {
+          name = "tmp"
+          empty_dir {}
         }
       }
     }
