@@ -24,7 +24,7 @@ resource "kubernetes_namespace_v1" "app" {
 # the pull secret, deployment, and service inside it.
 module "app_deploy" {
   source  = "app.terraform.io/jose-merchan/app-deploy/kubernetes"
-  version = "~> 0.3"
+  version = "~> 0.4"
 
   app_name  = var.app_name
   namespace = kubernetes_namespace_v1.app.metadata[0].name
@@ -43,6 +43,29 @@ module "app_deploy" {
   service_annotations = {
     "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
   }
+
+  # Health probe paths — Spring Boot Actuator endpoints.
+  liveness_path  = "/actuator/health/liveness"
+  readiness_path = "/actuator/health/readiness"
+
+  # Startup probe — gives the app up to 150s (30 × 5s) to become live before
+  # the kubelet starts enforcing liveness/readiness. Prevents CrashLoopBackOff
+  # during slow JVM startup.
+  enable_startup_probe      = true
+  startup_path              = "/actuator/health/liveness"
+  startup_period_seconds    = 5
+  startup_timeout_seconds   = 2
+  startup_failure_threshold = 30
+
+  # Liveness probe timing.
+  liveness_period_seconds    = 10
+  liveness_timeout_seconds   = 2
+  liveness_failure_threshold = 3
+
+  # Readiness probe timing.
+  readiness_period_seconds    = 5
+  readiness_timeout_seconds   = 2
+  readiness_failure_threshold = 3
 
   registry_server   = var.registry_server
   registry_username = var.registry_username

@@ -182,8 +182,124 @@ variable "enable_liveness_probe" {
   default     = true
 }
 
+variable "liveness_period_seconds" {
+  type        = number
+  description = "How often (in seconds) to perform the liveness probe."
+  default     = 10
+
+  validation {
+    condition     = var.liveness_period_seconds >= 1
+    error_message = "liveness_period_seconds must be >= 1."
+  }
+}
+
+variable "liveness_timeout_seconds" {
+  type        = number
+  description = "Number of seconds after which the liveness probe times out."
+  default     = 1
+
+  validation {
+    condition     = var.liveness_timeout_seconds >= 1
+    error_message = "liveness_timeout_seconds must be >= 1."
+  }
+}
+
+variable "liveness_failure_threshold" {
+  type        = number
+  description = "Number of consecutive liveness probe failures before the container is restarted."
+  default     = 3
+
+  validation {
+    condition     = var.liveness_failure_threshold >= 1
+    error_message = "liveness_failure_threshold must be >= 1."
+  }
+}
+
 variable "enable_readiness_probe" {
   type        = bool
   description = "Enable or disable the container readiness probe. When false, the readiness probe block is omitted entirely."
   default     = true
+}
+
+variable "readiness_period_seconds" {
+  type        = number
+  description = "How often (in seconds) to perform the readiness probe."
+  default     = 10
+
+  validation {
+    condition     = var.readiness_period_seconds >= 1
+    error_message = "readiness_period_seconds must be >= 1."
+  }
+}
+
+variable "readiness_timeout_seconds" {
+  type        = number
+  description = "Number of seconds after which the readiness probe times out."
+  default     = 1
+
+  validation {
+    condition     = var.readiness_timeout_seconds >= 1
+    error_message = "readiness_timeout_seconds must be >= 1."
+  }
+}
+
+variable "readiness_failure_threshold" {
+  type        = number
+  description = "Number of consecutive readiness probe failures before the pod is removed from service endpoints."
+  default     = 3
+
+  validation {
+    condition     = var.readiness_failure_threshold >= 1
+    error_message = "readiness_failure_threshold must be >= 1."
+  }
+}
+
+variable "enable_startup_probe" {
+  type        = bool
+  description = "Enable or disable the container startup probe. When true, liveness and readiness probes are paused until the startup probe succeeds. Recommended for apps with slow initialisation."
+  default     = false
+}
+
+variable "startup_path" {
+  type        = string
+  description = "HTTP GET path for the startup probe. Must start with /. Defaults to the liveness_path value."
+  default     = "/health/live"
+
+  validation {
+    condition     = can(regex("^/", var.startup_path))
+    error_message = "startup_path must start with /."
+  }
+}
+
+variable "startup_period_seconds" {
+  type        = number
+  description = "How often (in seconds) to perform the startup probe."
+  default     = 5
+
+  validation {
+    condition     = var.startup_period_seconds >= 1
+    error_message = "startup_period_seconds must be >= 1."
+  }
+}
+
+variable "startup_timeout_seconds" {
+  type        = number
+  description = "Number of seconds after which the startup probe times out."
+  default     = 2
+
+  validation {
+    condition     = var.startup_timeout_seconds >= 1
+    error_message = "startup_timeout_seconds must be >= 1."
+  }
+}
+
+variable "startup_failure_threshold" {
+  type        = number
+  description = "Number of consecutive startup probe failures before the container is killed. Total allowed startup time = startup_period_seconds × startup_failure_threshold."
+  default     = 30
+
+  validation {
+    condition     = var.startup_failure_threshold >= 1
+    error_message = "startup_failure_threshold must be >= 1."
+  }
 }

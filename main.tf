@@ -92,6 +92,19 @@ resource "kubernetes_deployment_v1" "this" {
             mount_path = "/tmp"
           }
 
+          dynamic "startup_probe" {
+            for_each = var.enable_startup_probe ? [1] : []
+            content {
+              http_get {
+                path = var.startup_path
+                port = tostring(var.container_port)
+              }
+              period_seconds    = var.startup_period_seconds
+              timeout_seconds   = var.startup_timeout_seconds
+              failure_threshold = var.startup_failure_threshold
+            }
+          }
+
           dynamic "liveness_probe" {
             for_each = var.enable_liveness_probe ? [1] : []
             content {
@@ -99,6 +112,9 @@ resource "kubernetes_deployment_v1" "this" {
                 path = var.liveness_path
                 port = tostring(var.container_port)
               }
+              period_seconds    = var.liveness_period_seconds
+              timeout_seconds   = var.liveness_timeout_seconds
+              failure_threshold = var.liveness_failure_threshold
             }
           }
 
@@ -109,6 +125,9 @@ resource "kubernetes_deployment_v1" "this" {
                 path = var.readiness_path
                 port = tostring(var.container_port)
               }
+              period_seconds    = var.readiness_period_seconds
+              timeout_seconds   = var.readiness_timeout_seconds
+              failure_threshold = var.readiness_failure_threshold
             }
           }
         }
