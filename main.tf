@@ -121,9 +121,10 @@ resource "kubernetes_deployment_v1" "this" {
 # Service
 resource "kubernetes_service_v1" "this" {
   metadata {
-    name      = var.app_name
-    namespace = var.namespace
-    labels    = local.common_labels
+    name        = var.app_name
+    namespace   = var.namespace
+    labels      = local.common_labels
+    annotations = var.service_annotations
   }
 
   spec {

@@ -22,3 +22,8 @@ output "secret_name" {
   description = "Name of the registry pull secret. Allows reference in additional deployments in the same namespace."
   value       = module.app_deploy.secret_name
 }
+
+output "service_load_balancer_hostname" {
+  description = "Public DNS hostname of the NLB. Empty until the load balancer is provisioned (1-3 min after apply). Use this FQDN to reach the service from outside the cluster."
+  value       = module.app_deploy.service_load_balancer_hostname
+}

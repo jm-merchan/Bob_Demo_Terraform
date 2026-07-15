@@ -24,7 +24,7 @@ resource "kubernetes_namespace_v1" "app" {
 # the pull secret, deployment, and service inside it.
 module "app_deploy" {
   source  = "app.terraform.io/jose-merchan/app-deploy/kubernetes"
-  version = "~> 0.1"
+  version = "~> 0.2"
 
   app_name  = var.app_name
   namespace = kubernetes_namespace_v1.app.metadata[0].name
@@ -32,12 +32,17 @@ module "app_deploy" {
   replicas  = var.replicas
 
   # [SECURITY OVERRIDE] service_type = "LoadBalancer" overrides the module's secure default
-  # of "ClusterIP". This provisions a Classic ELB with a public endpoint. Justification:
-  # explicit consumer requirement for the sandbox demo environment.
-  # OPERATORS MUST replace this with ClusterIP + Ingress + AWS Load Balancer Controller
-  # for production workloads. Risk: High (P1) — fix before production.
+  # of "ClusterIP". This provisions an AWS NLB with a public endpoint. Justification:
+  # explicit consumer requirement — NLB provides a stable public FQDN for the demo.
+  # OPERATORS MUST add WAF/TLS termination before production use.
   # See consumer-design.md §4 Security Controls (Public access row).
   service_type = "LoadBalancer"
+
+  # NLB annotation — requests an AWS Network Load Balancer instead of a Classic ELB.
+  # NLB provides a stable public DNS hostname (*.elb.amazonaws.com) and lower latency.
+  service_annotations = {
+    "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
+  }
 
   registry_server   = var.registry_server
   registry_username = var.registry_username

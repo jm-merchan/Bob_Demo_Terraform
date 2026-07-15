@@ -140,7 +140,7 @@ The following variables must be set in the **HCP Terraform workspace UI** (`k8s-
 
 | Name | Source | Version |
 | ---- | ------ | ------- |
-| <a name="module_app_deploy"></a> [app\_deploy](#module\_app\_deploy) | app.terraform.io/jose-merchan/app-deploy/kubernetes | ~> 0.1 |
+| <a name="module_app_deploy"></a> [app\_deploy](#module\_app\_deploy) | app.terraform.io/jose-merchan/app-deploy/kubernetes | ~> 0.2 |
 
 ## Resources
 
@@ -174,5 +174,6 @@ The following variables must be set in the **HCP Terraform workspace UI** (`k8s-
 | <a name="output_namespace"></a> [namespace](#output\_namespace) | Name of the created Kubernetes namespace. |
 | <a name="output_secret_name"></a> [secret\_name](#output\_secret\_name) | Name of the registry pull secret. Allows reference in additional deployments in the same namespace. |
 | <a name="output_service_cluster_ip"></a> [service\_cluster\_ip](#output\_service\_cluster\_ip) | ClusterIP address assigned to the service. Value is plan-unknown until apply. |
+| <a name="output_service_load_balancer_hostname"></a> [service\_load\_balancer\_hostname](#output\_service\_load\_balancer\_hostname) | Public DNS hostname of the NLB. Empty until the load balancer is provisioned (1-3 min after apply). Use this FQDN to reach the service from outside the cluster. |
 | <a name="output_service_name"></a> [service\_name](#output\_service\_name) | Name of the kubernetes\_service\_v1 LoadBalancer service. |
 <!-- END_TF_DOCS -->

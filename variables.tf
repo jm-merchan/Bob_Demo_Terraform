@@ -104,6 +104,12 @@ variable "service_type" {
   }
 }
 
+variable "service_annotations" {
+  type        = map(string)
+  description = "Annotations to apply to the Kubernetes service metadata. Use to pass cloud-provider-specific annotations (e.g., NLB: {\"service.beta.kubernetes.io/aws-load-balancer-type\" = \"nlb\"}). Defaults to empty map (no annotations)."
+  default     = {}
+}
+
 variable "cpu_request" {
   type        = string
   description = "CPU resource request per container pod. Kubernetes quantity string (e.g., \"250m\", \"0.25\")."
